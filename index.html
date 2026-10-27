@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0e1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Учёт рекламы">
+<meta name="robots" content="noindex,nofollow">
+<title>Учёт рекламы</title>
+<style>
+:root{
+  --bg:#0d1117;--panel:#151b23;--panel2:#1b2330;--line:#28323f;--line2:#344153;
+  --text:#e8edf3;--muted:#8a97a8;--dim:#5f6c7d;
+  --accent:#2dd4bf;--accent-ink:#04201c;--accent-soft:rgba(45,212,191,.13);
+  --blue:#6ea8fe;--warn:#fbbf24;--warn-soft:rgba(251,191,36,.13);--bad:#f87171;--bad-soft:rgba(248,113,113,.13);--good:#4ade80;
+  --r:12px;--r-sm:8px;--side:224px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
+body.noscroll{overflow:hidden}
+a{color:var(--blue);text-decoration:none}
+button,input,select,textarea{font:inherit;color:inherit}
+h1{font-size:22px;margin:0;font-weight:650;letter-spacing:-.01em}
+h2{font-size:15px;margin:0 0 12px;font-weight:650}
+h3{font-size:13px;margin:0 0 8px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}.dim{color:var(--dim)}.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.mono{font-family:var(--mono)}
+.hide{display:none!important}
+
+/* layout */
+#app{display:flex;min-height:100vh}
+.side{width:var(--side);flex:none;background:var(--panel);border-right:1px solid var(--line);padding:18px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px;overflow:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 10px 16px;font-weight:700;font-size:15px}
+.brand i{width:26px;height:26px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:var(--accent-ink);font-style:normal;font-weight:800;font-size:13px}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:var(--r-sm);color:var(--muted);font-weight:550}
+.nav a:hover{background:var(--panel2);color:var(--text)}
+.nav a.on{background:var(--accent-soft);color:var(--accent)}
+.nav .badge{margin-left:auto;background:var(--warn);color:#241a00;border-radius:99px;font-size:11px;font-weight:700;padding:1px 7px}
+.side .grow{flex:1}
+.nav .sm{display:none}
+.sync{font-size:12px;color:var(--muted);padding:8px 10px;display:flex;align-items:center;gap:8px}
+.sync b{width:8px;height:8px;border-radius:50%;background:var(--dim);display:inline-block}
+.sync.ok b{background:var(--good)}.sync.busy b{background:var(--warn)}.sync.err b{background:var(--bad)}
+main{flex:1;min-width:0;padding:24px 28px 60px;max-width:1280px}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.top .sp{flex:1}
+.mtop{display:none}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.i.s{width:15px;height:15px}
+
+/* ui */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.card+.card{margin-top:14px}
+.grid>.card,.grid>div>.card{margin-top:0!important}
+.filters input[type=checkbox]{min-width:0;width:auto}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.g4{grid-template-columns:repeat(4,minmax(0,1fr))}.g6{grid-template-columns:repeat(6,minmax(0,1fr))}
+.kpi{padding:14px 16px}
+.kpi .l{color:var(--muted);font-size:12px;font-weight:550}
+.kpi .v{font-size:24px;font-weight:700;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .d{font-size:12px;color:var(--muted);margin-top:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:8px 14px;border-radius:var(--r-sm);border:1px solid var(--line2);background:var(--panel2);cursor:pointer;font-weight:600;min-height:36px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:4px 10px;min-height:30px;font-size:13px}
+.btn.ghost{background:transparent}
+.icon-btn{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--muted);cursor:pointer;padding:0}
+.icon-btn:hover{background:var(--panel2);color:var(--text)}
+.icon-btn.done{color:var(--good)}
+input,select,textarea{background:#0f141b;border:1px solid var(--line2);border-radius:var(--r-sm);padding:8px 10px;width:100%;min-height:38px;outline:none}
+textarea{resize:vertical;min-height:80px}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+input[type=checkbox]{width:auto;min-height:0}
+label.f{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px}
+label.f>input,label.f>select,label.f>textarea{margin-top:5px;color:var(--text);font-weight:400;font-size:14px}
+label.chk{display:inline-flex;align-items:center;gap:8px;color:var(--muted);cursor:pointer;font-size:13px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.nw{flex-wrap:nowrap}
+.sp{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
+.chip.geo{color:var(--blue)}.chip.src{color:var(--accent)}
+button.chip{cursor:pointer;font-family:var(--mono);color:var(--text)}
+button.chip:hover{border-color:var(--accent);color:var(--accent)}
+button.chip.done{border-color:var(--good);color:var(--good)}
+.tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;background:var(--panel2);color:var(--muted)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}.tag.bad{background:var(--bad-soft);color:var(--bad)}.tag.ok{background:var(--accent-soft);color:var(--accent)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.filters select,.filters input{width:auto;min-width:110px}
+.filters input.search{min-width:220px;flex:1;max-width:380px}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+table{border-collapse:collapse;width:100%}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--panel);position:sticky;top:0}
+td.r,th.r{text-align:right}
+tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:rgba(255,255,255,.02)}
+tfoot td{font-weight:700;background:var(--panel2)}
+.tw.card-pad{padding:0}
+td.wrap{white-space:normal}
+
+/* partner list */
+.plist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--panel)}
+.prow{display:grid;grid-template-columns:minmax(0,2.2fr) 130px minmax(0,1fr) 110px 150px 110px;gap:12px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.prow:last-child{border-bottom:0}
+.prow.h{background:var(--panel2);font-size:12px;color:var(--muted);font-weight:600;padding:8px 14px}
+a.prow{color:inherit}
+a.prow:hover{background:rgba(255,255,255,.03)}
+.pname{font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pname small{display:block;color:var(--muted);font-weight:400;overflow:hidden;text-overflow:ellipsis}
+
+/* progress */
+.prog{height:8px;border-radius:99px;background:var(--panel2);overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.prog.warn i{background:var(--warn)}.prog.bad i{background:var(--bad)}
+.bars{display:flex;align-items:flex-end;gap:6px;height:170px;padding-top:18px}
+.bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0;position:relative}
+.bar i{display:block;width:100%;background:var(--accent);border-radius:5px 5px 0 0;min-height:2px;opacity:.85}
+.bar.cur i{opacity:1;background:var(--blue)}
+.bar span{font-size:10px;color:var(--muted);margin-top:6px;white-space:nowrap}
+.bar em{font-style:normal;font-size:10px;color:var(--text);position:absolute;top:-2px;transform:translateY(-100%);white-space:nowrap}
+.hb{display:grid;grid-template-columns:90px 1fr 100px;gap:10px;align-items:center;padding:5px 0}
+.hb .t{height:10px;background:var(--panel2);border-radius:99px;overflow:hidden}.hb .t i{display:block;height:100%;background:var(--accent);border-radius:99px}
+
+/* list blocks */
+.li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border-bottom:0}
+.li .lb{font-weight:600;min-width:110px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .val{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:13px;color:var(--muted)}
+.li .val.code{color:var(--text);font-size:14px}
+.rem{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:var(--r-sm);background:var(--warn-soft);color:var(--text);margin-bottom:8px;border:1px solid rgba(251,191,36,.25)}
+.rem.bad{background:var(--bad-soft);border-color:rgba(248,113,113,.28)}
+.rem svg{color:var(--warn);margin-top:2px}.rem.bad svg{color:var(--bad)}
+
+/* calendar */
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) 86px;gap:6px}
+.cal .hd{font-size:11px;color:var(--muted);font-weight:600;text-align:center;padding:4px 0}
+.day{min-height:76px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 8px;cursor:pointer;display:flex;flex-direction:column;gap:2px;text-align:left}
+.day:hover{border-color:var(--line2)}
+.day.out{opacity:.4}.day.today{border-color:var(--blue)}.day.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.day b{font-size:12px;color:var(--muted)}.day .n{font-size:11px;color:var(--accent);font-weight:700}.day .s{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.wk{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;padding:0 4px;font-size:12px}
+.wk b{font-size:13px;font-variant-numeric:tabular-nums}.wk span{color:var(--muted);font-size:11px}
+
+/* modal / toast */
+.modal-back{position:fixed;inset:0;background:rgba(3,6,10,.7);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:5vh 14px;overflow:auto;backdrop-filter:blur(3px)}
+.modal{background:var(--panel);border:1px solid var(--line2);border-radius:14px;width:100%;max-width:520px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.modal.wide{max-width:760px}
+.modal h2{font-size:17px;margin-bottom:14px}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:#e8edf3;color:#0d1117;padding:9px 16px;border-radius:10px;font-weight:600;opacity:0;pointer-events:none;transition:.2s;z-index:99;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.sugg{border:1px solid var(--line2);border-radius:var(--r-sm);margin-top:6px;overflow:hidden;background:var(--panel2)}
+.sugg button{display:flex;width:100%;text-align:left;gap:10px;align-items:center;padding:9px 12px;background:transparent;border:0;border-bottom:1px solid var(--line);cursor:pointer}
+.sugg button:last-child{border-bottom:0}.sugg button:hover{background:rgba(255,255,255,.05)}
+.sel-p{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:var(--r-sm)}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r-sm);overflow:hidden}
+.seg button{background:transparent;border:0;padding:7px 12px;cursor:pointer;color:var(--muted);font-weight:600}
+.seg button.on{background:var(--accent-soft);color:var(--accent)}
+.auth{max-width:400px;margin:12vh auto 0;padding:0 16px}
+.auth .card{padding:22px}
+.sect{margin-top:22px}
+.pre{background:#0a0e13;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;font:12px/1.5 var(--mono);overflow:auto;white-space:pre;color:#b9c4d3}
+
+@media(max-width:1100px){.g6{grid-template-columns:repeat(3,minmax(0,1fr))}.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){
+  #app{display:block}
+  .side{position:fixed;bottom:0;left:0;right:0;top:auto;width:auto;height:auto;flex-direction:row;padding:6px 6px calc(6px + env(safe-area-inset-bottom));border-right:0;border-top:1px solid var(--line);z-index:30;overflow-x:auto;gap:2px}
+  .side .brand,.side .grow,.side .sync{display:none}
+  .nav{display:flex;gap:2px;width:100%;justify-content:space-between}
+  .wk-t th:nth-child(4),.wk-t td:nth-child(4),.wk-t th:nth-child(6),.wk-t td:nth-child(6){display:none}
+  .nav .lg{display:none}.nav .sm{display:inline}
+  .nav a{flex-direction:column;gap:2px;font-size:10.5px;padding:6px 4px;flex:1;min-width:52px;text-align:center;position:relative}
+  .nav .badge{position:absolute;top:2px;right:6px;margin:0;padding:0 5px}
+  .nav a.add svg{background:var(--accent);color:var(--accent-ink);border-radius:50%;width:30px;height:30px;padding:6px;margin-top:-14px}
+  main{padding:14px 14px 100px}
+  .mtop{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-weight:700}
+  .mtop .sync{margin-left:auto;padding:0}
+  h1{font-size:19px}
+  .g2,.g3{grid-template-columns:1fr}.g6,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpi .v{font-size:20px}
+  .prow{grid-template-columns:1fr auto;gap:4px 10px;padding:12px 14px}
+  .prow.h{display:none}
+  .prow .c-x{display:none}
+  .filters select,.filters input{min-width:0;flex:1 1 40%}
+  .filters input.search{flex:1 1 100%;max-width:none}
+  input,select,textarea{font-size:16px}
+  .cal{grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+  .cal .wk{display:none}
+  .day{min-height:58px;padding:4px;border-radius:7px}.day .s{font-size:10px}.day .n{font-size:10px}
+  .modal-back{padding:2vh 8px}
+  .hb{grid-template-columns:60px 1fr 84px}
+  #toast{bottom:90px}
+  .li{flex-wrap:wrap}.li .lb{max-width:none;min-width:0;flex:1 0 100%}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="toast"></div>
+<datalist id="dl-geo"></datalist><datalist id="dl-src"></datalist><datalist id="dl-buyer"></datalist>
+
+<script>
+'use strict';
+/* ================= helpers ================= */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=p=>p+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
+const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+const pad=n=>String(n).padStart(2,'0');
+const D=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(Date.UTC(y,m-1,d))};
+const S=dt=>dt.toISOString().slice(0,10);
+const addDays=(s,n)=>{const d=D(s);d.setUTCDate(d.getUTCDate()+n);return S(d)};
+const today=()=>{const n=new Date();return `${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`};
+const dmy=s=>s?s.split('-').reverse().join('.'):'';
+const dowMon=s=>(D(s).getUTCDay()+6)%7;
+const monday=s=>addDays(s,-dowMon(s));
+function isoWeek(s){const d=D(s);d.setUTCDate(d.getUTCDate()-dowMon(s)+3);const y=d.getUTCFullYear();const j4=new Date(Date.UTC(y,0,4));const w=1+Math.round(((d-j4)/864e5-3+((j4.getUTCDay()+6)%7))/7);return {y,w}}
+const weekKey=s=>{const {y,w}=isoWeek(s);return `${y}-W${pad(w)}`};
+function weekStart(key){const [y,w]=key.split('-W').map(Number);const j4=Date.UTC(y,0,4);const j4d=(new Date(j4).getUTCDay()+6)%7;return S(new Date(j4+((w-1)*7-j4d)*864e5))}
+const MONTHS=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const mLabel=m=>{const [y,mm]=m.split('-');return `${MONTHS[+mm-1]} ${y}`};
+const addMonth=(m,n)=>{let [y,mm]=m.split('-').map(Number);mm+=n;while(mm>12){mm-=12;y++}while(mm<1){mm+=12;y--}return `${y}-${pad(mm)}`};
+const nf0=new Intl.NumberFormat('en-US',{maximumFractionDigits:0}),nf2=new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const money=(n,d)=>{n=+n||0;const neg=n<0;n=Math.abs(n);const s=(d===undefined?(Math.abs(n-Math.round(n))<.005):d===0)?nf0.format(Math.round(n)):nf2.format(n);return (neg?'−':'')+'$'+s};
+const num2=n=>nf2.format(+n||0);
+const sum=(a,f=x=>x)=>a.reduce((s,x)=>s+(+f(x)||0),0);
+const r2=n=>Math.round(n*100)/100;
+function ic(n,c=''){const P={
+ grid:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
+ users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+ plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+ cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+ file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+ chart:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+ set:'<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+ copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+ check:'<polyline points="20 6 9 17 4 12"/>',
+ ext:'<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
+ trash:'<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2"/>',
+ edit:'<path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>',
+ search:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+ left:'<polyline points="15 18 9 12 15 6"/>',right:'<polyline points="9 18 15 12 9 6"/>',
+ bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+ x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'};
+ return `<svg class="i ${c}" viewBox="0 0 24 24" aria-hidden="true">${P[n]||''}</svg>`}
+function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('on'),1800)}
+async function copyText(text){
+  let ok=false;
+  try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);ok=true}}catch(e){}
+  if(!ok){const ta=document.createElement('textarea');ta.value=text;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:0;left:0;opacity:0;font-size:16px';document.body.appendChild(ta);ta.focus();ta.select();ta.setSelectionRange(0,text.length);try{ok=document.execCommand('copy')}catch(e){}ta.remove()}
+  return ok}
+/* sha-256 (works also without secure context) */
+const SHA={K:null,H:null};
+function sha256(str){
+  if(!SHA.K){const pr=[];for(let n=2;pr.length<64;n++){if(pr.every(p=>n%p))pr.push(n)}SHA.K=pr.map(p=>(Math.cbrt(p)%1)*4294967296>>>0);SHA.H=pr.slice(0,8).map(p=>(Math.sqrt(p)%1)*4294967296>>>0)}
+  const b=new TextEncoder().encode(str),l=b.length,n=((l+9+63)>>6)<<6,m=new Uint8Array(n);m.set(b);m[l]=128;new DataView(m.buffer).setUint32(n-4,l*8,false);new DataView(m.buffer).setUint32(n-8,Math.floor(l*8/4294967296),false);
+  const h=SHA.H.slice(),w=new Uint32Array(64),K=SHA.K,rr=(x,k)=>(x>>>k)|(x<<(32-k));
+  for(let o=0;o<n;o+=64){const v=new DataView(m.buffer,o,64);for(let i=0;i<16;i++)w[i]=v.getUint32(i*4,false);
+    for(let i=16;i<64;i++){const a=w[i-15],c=w[i-2];w[i]=(w[i-16]+(rr(a,7)^rr(a,18)^(a>>>3))+w[i-7]+(rr(c,17)^rr(c,19)^(c>>>10)))>>>0}
+    let [a,b2,c,d,e,f,g,hh]=h;
+    for(let i=0;i<64;i++){const t1=(hh+(rr(e,6)^rr(e,11)^rr(e,25))+((e&f)^(~e&g))+K[i]+w[i])>>>0,t2=((rr(a,2)^rr(a,13)^rr(a,22))+((a&b2)^(a&c)^(b2&c)))>>>0;hh=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=b2;b2=a;a=(t1+t2)>>>0}
+    h[0]=(h[0]+a)>>>0;h[1]=(h[1]+b2)>>>0;h[2]=(h[2]+c)>>>0;h[3]=(h[3]+d)>>>0;h[4]=(h[4]+e)>>>0;h[5]=(h[5]+f)>>>0;h[6]=(h[6]+g)>>>0;h[7]=(h[7]+hh)>>>0}
+  return h.map(x=>x.toString(16).padStart(8,'0')).join('')}
+const hashCode=(code,salt)=>{let h=salt+'|'+code;for(let i=0;i<3000;i++)h=sha256(h+salt);return h};
+
+/* ================= state ================= */
+const DEFAULTS=()=>({v:1,meta:{rev:0,salt:'',codeHash:''},settings:{geos:['AZ','AR','CH','TR'],sources:['TG','IG','STR','YT','FB','BRAND','SITES','WA','X'],buyers:[],remindLeft:2,remindDays:7,noBrand:true},partners:[],entries:[],packs:[],fd:[]});
+let ST=null,PM=new Map(),EBP=new Map(),PST=new Map();
+function reindex(){
+  PM=new Map(ST.partners.map(p=>[p.id,p]));EBP=new Map();PST=new Map();
+  for(const e of ST.entries){let a=EBP.get(e.p);if(!a)EBP.set(e.p,a=[]);a.push(e);
+    let s=PST.get(e.p);if(!s)PST.set(e.p,s={last:'',total:0,cnt:0});s.total+=e.a;if(e.t==='i'){s.cnt++;if(e.d>s.last)s.last=e.d}}
+  $('#dl-geo').innerHTML=ST.settings.geos.map(x=>`<option value="${esc(x)}">`).join('');
+  $('#dl-src').innerHTML=ST.settings.sources.map(x=>`<option value="${esc(x)}">`).join('');
+  $('#dl-buyer').innerHTML=ST.settings.buyers.map(x=>`<option value="${esc(x)}">`).join('');
+}
+function persist(){const ok=LS.set('mbyar_state',JSON.stringify(ST));if(!ok&&!persist.warned){persist.warned=1;alert('Не удалось сохранить данные в браузере (нет места или закрыт доступ). Сделайте бэкап в Настройках.')}}
+function save(){ST.meta.rev=Date.now();persist();reindex();schedulePush();updateBadges()}
+const ensureList=(k,v)=>{v=(v||'').trim();if(v&&!ST.settings[k].includes(v))ST.settings[k].push(v)};
+
+/* ================= domain ================= */
+const curPrice=(p,date)=>{const pr=[...(p.prices||[])].sort((a,b)=>b.from.localeCompare(a.from));if(!pr.length)return null;const d=date||today();const x=pr.find(x=>x.from<=d)||pr[pr.length-1];return x?x.price:null};
+const openPack=pid=>ST.packs.find(k=>k.p===pid&&!k.closed)||null;
+const packFor=(pid,date)=>{const k=openPack(pid);return k&&date>=k.start&&(!k.end||date<=k.end)?k:null};
+function packStats(k){
+  const es=ST.entries.filter(e=>e.k===k.id);const cnt=es.filter(e=>e.t==='i').length;
+  const done=(+k.done0||0)+cnt,left=k.count-done,spent=(+k.spent0||0)+sum(es,e=>e.a);
+  return {done,left,spent,leftSum:k.budget?k.budget-spent:null,cnt}}
+function reminders(){
+  const out=[],td=today();
+  for(const k of ST.packs){if(k.closed)continue;const p=PM.get(k.p);if(!p)continue;const s=packStats(k);
+    if(s.left<=0)out.push({lvl:2,p,k,t:`Пакет выполнен (${s.done} из ${k.count}). Закройте и оформите продление`});
+    else if(s.left<=ST.settings.remindLeft)out.push({lvl:1,p,k,t:`Осталось интеграций: ${s.left} из ${k.count}`});
+    if(s.leftSum!==null&&s.leftSum<=0&&s.left>0)out.push({lvl:1,p,k,t:`Бюджет пакета исчерпан (${money(s.spent)} из ${money(k.budget)}), а интеграций осталось ${s.left}`});
+    if(k.end){const days=Math.round((D(k.end)-D(td))/864e5);
+      if(days<0)out.push({lvl:2,p,k,t:`Срок контракта истёк ${-days} дн. назад (${dmy(k.end)})`});
+      else if(days<=ST.settings.remindDays)out.push({lvl:1,p,k,t:`Контракт заканчивается через ${days} дн. (${dmy(k.end)}), осталось интеграций: ${s.left}`})}}
+  return out.sort((a,b)=>b.lvl-a.lvl)}
+function ents(f={}){return ST.entries.filter(e=>{if(f.from&&e.d<f.from)return false;if(f.to&&e.d>f.to)return false;const p=PM.get(e.p);if(!p)return false;
+  if(f.geo&&p.geo!==f.geo)return false;if(f.source&&p.source!==f.source)return false;if(f.buyer&&p.buyer!==f.buyer)return false;if(f.noBrand&&p.source==='BRAND')return false;return true})}
+function fdSum(m,f={}){let fd=0,fails=0;for(const r of ST.fd){if(m&&r.m!==m)continue;if(f.geo&&r.geo!==f.geo)continue;if(f.source&&r.source!==f.source)continue;fd+=+r.fd||0;fails+=+r.fails||0}return {fd,fails}}
+const cpa=(spend,fd,fails,k)=>{const den=fd+fails*k;return den>0?spend/den:null};
+const cpaS=v=>v===null?'—':money(v,2);
+const dimList=d=>d==='geo'?ST.settings.geos:d==='source'?ST.settings.sources:ST.settings.buyers;
+const dimName={geo:'Гео',source:'Источник',buyer:'Байер'};
+const badge=p=>`<span class="chip geo">${esc(p.geo)}</span> <span class="chip src">${esc(p.source)}</span>`;
+function entryTypeLabel(e){return e.t==='r'?'Возврат/скидка':e.t==='x'?'Корректировка':'Интеграция'}
+
+/* ================= router/ui state ================= */
+const UI={dash:{m:null},partners:{q:'',geo:'',source:'',buyer:'',status:'active',recent:false,sort:'recent',limit:80},
+  add:{pid:'',date:'',type:'i',amount:'',amountDirty:false,url:'',note:'',clear:false,session:[]},
+  cal:{month:null,sel:null,geo:'',source:'',buyer:''},week:{key:null,buyer:'',geo:'',header:false,comma:false},
+  stats:{mode:'month',dim:'geo',year:null,geo:'',source:'',buyer:'',fdMonth:null},pd:{all:false}};
+function route(){const h=location.hash.replace(/^#\/?/,'');const [name,arg]=h.split('/');return {name:name||'dash',arg}}
+const NAV=[['dash','Дашборд','grid','','Дашборд'],['partners','Партнёры','users','','Партнёры'],['add','Интеграция','plus','add','Добавить'],['cal','Календарь','cal','','Календарь'],['week','Недельный отчёт','file','','Отчёт'],['stats','Косты','chart','','Косты'],['settings','Настройки','set','','Ещё']];
+function shell(inner){
+  const r=route();const cur=r.name==='partner'?'partners':r.name;
+  return `<div id="app"><aside class="side"><div class="brand"><i>A</i><span>Учёт рекламы</span></div>
+  <nav class="nav">${NAV.map(([k,l,i,c,sh])=>`<a href="#/${k}" class="${cur===k?'on':''} ${c||''}">${ic(i)}<span class="lg">${l}</span><span class="sm">${sh}</span>${k==='dash'?'<span class="badge hide" id="nb-rem"></span>':''}</a>`).join('')}</nav>
+  <div class="grow"></div><div class="sync" id="sync"><b></b><span></span></div></aside>
+  <main><div class="mtop"><i style="width:22px;height:22px;border-radius:7px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:12px;font-weight:800">A</i>Учёт рекламы<div class="sync" id="sync2"><b></b><span></span></div></div>${inner}</main></div>`}
+function updateBadges(){const n=ST?reminders().length:0;const el=$('#nb-rem');if(el){el.textContent=n;el.classList.toggle('hide',!n)}setSync(CL.status)}
+function render(){
+  if(!ST)return;const r=route();let h='';
+  try{
+    if(r.name==='dash')h=pgDash();else if(r.name==='partners')h=pgPartners();else if(r.name==='partner')h=pgPartner(r.arg);
+    else if(r.name==='add')h=pgAdd();else if(r.name==='cal')h=pgCal();else if(r.name==='week')h=pgWeek();
+    else if(r.name==='stats')h=pgStats();else if(r.name==='settings')h=pgSettings();else h=pgDash();
+  }catch(e){console.error(e);h=`<div class="card bad">Ошибка отображения: ${esc(e.message)}</div>`}
+  $('#root').innerHTML=shell(h);updateBadges();
+  const af=$('[data-autofocus]');if(af&&!/iPhone|iPad/.test(navigator.userAgent))af.focus();
+  if(r.name==='add')addInit();
+}
+window.addEventListener('hashchange',()=>{closeModal();render();window.scrollTo(0,0)});
+
+/* ================= modal ================= */
+function modal(html,wide){closeModal();const m=document.createElement('div');m.className='modal-back';m.innerHTML=`<div class="modal ${wide?'wide':''}" role="dialog">${html}</div>`;m.addEventListener('mousedown',e=>{if(e.target===m)closeModal()});document.body.appendChild(m);document.body.classList.add('noscroll');
+  const f=m.querySelector('input:not([type=hidden]),select,textarea');if(f&&!/iPhone|iPad/.test(navigator.userAgent))f.focus();return m}
+function closeModal(){$$('.modal-back').forEach(x=>x.remove());document.body.classList.remove('noscroll')}
+function modalForm(title,body,submitLabel,onSubmit,wide,extra=''){
+  const m=modal(`<h2>${esc(title)}</h2><form autocomplete="off">${body}<div class="acts">${extra}<button type="button" class="btn" data-act="closeModal">Отмена</button><button class="btn pri">${esc(submitLabel||'Сохранить')}</button></div></form>`,wide);
+  m.querySelector('form').addEventListener('submit',ev=>{ev.preventDefault();const f=Object.fromEntries(new FormData(ev.target));if(onSubmit(f,ev.target)!==false)closeModal()});return m}
+const fld=(label,name,val='',o={})=>`<label class="f">${esc(label)}${o.tag==='textarea'?`<textarea name="${name}" ${o.ph?`placeholder="${esc(o.ph)}"`:''} rows="${o.rows||3}">${esc(val)}</textarea>`:o.tag==='select'?`<select name="${name}">${o.opts.map(([v,l])=>`<option value="${esc(v)}" ${String(v)===String(val)?'selected':''}>${esc(l)}</option>`).join('')}</select>`:`<input name="${name}" value="${esc(val)}" type="${o.type||'text'}" ${o.list?`list="${o.list}"`:''} ${o.ph?`placeholder="${esc(o.ph)}"`:''} ${o.req?'required':''} ${o.step?`step="${o.step}"`:''} ${o.inputmode?`inputmode="${o.inputmode}"`:''}>`}</label>`;
+
+/* ================= pages: dashboard ================= */
+function distBlock(title,dim,es){
+  const m=new Map();for(const e of es){const k=PM.get(e.p)[dim];m.set(k,(m.get(k)||0)+e.a)}
+  const rows=[...m.entries()].filter(([,v])=>Math.abs(v)>.004).sort((a,b)=>b[1]-a[1]);const mx=Math.max(1,...rows.map(r=>r[1]));
+  return `<div class="card"><h3>${title}</h3>${rows.length?rows.map(([k,v])=>`<div class="hb"><span>${esc(k||'—')}</span><div class="t"><i style="width:${Math.max(0,v/mx*100)}%"></i></div><span class="num" style="text-align:right">${money(v)}</span></div>`).join(''):'<div class="muted">Нет данных</div>'}</div>`}
+function pgDash(){
+  const all=ST.entries.map(e=>e.d).sort();const cm=today().slice(0,7);
+  let months=[];if(all.length){let m=all[0].slice(0,7);const last=addMonth(cm,1);while(m<=last){months.push(m);m=addMonth(m,1)}}else months=[cm];
+  const sel=UI.dash.m||cm;const nb=ST.settings.noBrand;
+  const f=sel==='all'?{}:{from:sel+'-01',to:sel+'-31'};
+  const es=ents({...f,noBrand:nb});const spend=sum(es,e=>e.a),cnt=es.filter(e=>e.t==='i').length;
+  const {fd,fails}=fdSum(sel==='all'?null:sel);
+  let prevTxt='';if(sel!=='all'){const pm=addMonth(sel,-1);const ps=sum(ents({from:pm+'-01',to:pm+'-31',noBrand:nb}),e=>e.a);if(ps)prevTxt=`${spend>=ps?'+':'−'}${Math.abs((spend-ps)/ps*100).toFixed(0)}% к ${MONTHS[+pm.slice(5)-1].toLowerCase()}`}
+  // weeks chart: last 12 weeks
+  const wk=[];let mon=monday(today());for(let i=11;i>=0;i--)wk.push(addDays(mon,-7*i));
+  const wm=new Map(wk.map(s=>[s,0]));for(const e of ents({from:wk[0],noBrand:nb})){const k=monday(e.d);if(wm.has(k))wm.set(k,wm.get(k)+e.a)}
+  const mxw=Math.max(1,...wm.values());
+  const rem=reminders();
+  const packs=ST.packs.filter(k=>!k.closed).map(k=>({k,p:PM.get(k.p),s:packStats(k)})).filter(x=>x.p).sort((a,b)=>a.s.left-b.s.left);
+  const top=new Map();for(const e of es){top.set(e.p,(top.get(e.p)||0)+e.a)}
+  const topRows=[...top.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10);
+  return `<div class="top"><h1>Дашборд</h1><div class="sp"></div>
+   <select id="dash-m" style="width:auto">${[...months].reverse().map(m=>`<option value="${m}" ${m===sel?'selected':''}>${mLabel(m)}</option>`).join('')}<option value="all" ${sel==='all'?'selected':''}>Всё время</option></select>
+   <label class="chk"><input type="checkbox" data-act="toggleNoBrand" ${nb?'checked':''}> без BRAND</label>
+   <a class="btn pri" href="#/add">${ic('plus','s')} Интеграция</a></div>
+  ${rem.length?`<div class="sect" style="margin-top:0">${rem.map(r=>`<a class="rem ${r.lvl>1?'bad':''}" href="#/partner/${r.p.id}" style="color:inherit">${ic('bell')}<div><b>${esc(r.p.name)}</b> <span class="muted">${esc(r.p.geo)} ${esc(r.p.source)}</span><br>${esc(r.t)}</div></a>`).join('')}</div>`:''}
+  <div class="grid g6" style="margin-bottom:14px">
+   <div class="card kpi"><div class="l">Расход</div><div class="v">${money(spend)}</div><div class="d">${prevTxt||'&nbsp;'}</div></div>
+   <div class="card kpi"><div class="l">Интеграций</div><div class="v">${nf0.format(cnt)}</div><div class="d">${cnt?'ср. '+money(spend/cnt):'&nbsp;'}</div></div>
+   <div class="card kpi"><div class="l">FD</div><div class="v">${fd?nf0.format(fd):'—'}</div><div class="d">фейлов: ${nf0.format(fails)}</div></div>
+   <div class="card kpi"><div class="l">CPA</div><div class="v">${cpaS(cpa(spend,fd,fails,0))}</div><div class="d">расход / FD</div></div>
+   <div class="card kpi"><div class="l">CPA + фейлы</div><div class="v">${cpaS(cpa(spend,fd,fails,1))}</div><div class="d">/ (FD + фейлы)</div></div>
+   <div class="card kpi"><div class="l">CPA + ½ фейлов</div><div class="v">${cpaS(cpa(spend,fd,fails,.5))}</div><div class="d">/ (FD + 50% фейлов)</div></div></div>
+  <div class="card"><h3>Расход по неделям (последние 12)</h3><div class="bars">${wk.map(s=>{const v=wm.get(s);const k=weekKey(s);return `<div class="bar ${s===mon?'cur':''}" title="${k}: ${money(v)}"><em>${v?nf0.format(v):''}</em><i style="height:${Math.max(1,v/mxw*100)}%"></i><span>W${k.slice(-2)}</span></div>`}).join('')}</div></div>
+  <div class="grid g3" style="margin-top:14px">${distBlock('По гео','geo',es)}${distBlock('По источникам','source',es)}${distBlock('По байерам','buyer',es)}</div>
+  <div class="grid g2 sect">
+   <div><h2>Активные пакеты</h2>${packs.length?`<div class="tw"><table><thead><tr><th>Партнёр</th><th class="r">Осталось</th><th class="r">Остаток $</th><th>Срок</th></tr></thead><tbody>${packs.map(({k,p,s})=>`<tr><td><a href="#/partner/${p.id}">${esc(p.name)}</a> <span class="muted">${esc(p.geo)} ${esc(p.source)}</span></td><td class="r num ${s.left<=ST.settings.remindLeft?'warn':''}">${s.left} из ${k.count}</td><td class="r num">${s.leftSum===null?'—':money(s.leftSum)}</td><td class="muted">${k.end?'до '+dmy(k.end):'без срока'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="card empty">Нет активных пакетов. Создайте пакет в карточке партнёра.</div>'}</div>
+   <div><h2>Топ партнёров за период</h2>${topRows.length?`<div class="tw"><table><tbody>${topRows.map(([id,v])=>{const p=PM.get(id);return `<tr><td><a href="#/partner/${id}">${esc(p.name)}</a> <span class="muted">${esc(p.geo)} ${esc(p.source)}</span></td><td class="r num">${money(v)}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="card empty">Нет данных</div>'}</div>
+  </div>`}
+
+/* ================= pages: partners ================= */
+function filterPartners(){
+  const u=UI.partners,q=u.q.trim().toLowerCase(),lim=addDays(today(),-60);
+  let a=ST.partners.filter(p=>{
+    if(u.status&&(p.status||'active')!==u.status)return false;
+    if(u.geo&&p.geo!==u.geo)return false;if(u.source&&p.source!==u.source)return false;if(u.buyer&&p.buyer!==u.buyer)return false;
+    if(u.recent){const s=PST.get(p.id);if(!s||s.last<lim)return false}
+    if(q){const hay=[p.name,p.tracker,p.link,p.manager,p.geo,p.source,p.buyer,...(p.links||[]).map(l=>l.label+' '+l.url),...(p.promos||[]).map(l=>l.label+' '+l.code)].join(' ').toLowerCase();if(!q.split(/\s+/).every(w=>hay.includes(w)))return false}
+    return true});
+  const st=p=>PST.get(p.id)||{last:'',total:0};
+  if(u.sort==='recent')a.sort((x,y)=>st(y).last.localeCompare(st(x).last)||x.name.localeCompare(y.name));
+  else if(u.sort==='name')a.sort((x,y)=>x.name.localeCompare(y.name));
+  else if(u.sort==='spend')a.sort((x,y)=>st(y).total-st(x).total);
+  return a}
+function partnerRows(){
+  const a=filterPartners(),u=UI.partners,shown=a.slice(0,u.limit);
+  return `<div class="muted" style="margin:0 2px 8px">Найдено: ${a.length}</div>`+(a.length?`<div class="plist"><div class="prow h"><span>Партнёр</span><span>Гео / источник</span><span class="c-x">Трекер</span><span class="c-x">Байер</span><span class="c-x">Пакет</span><span class="c-x" style="text-align:right">Последняя</span></div>${shown.map(p=>{
+    const s=PST.get(p.id)||{last:'',cnt:0},k=openPack(p.id),ps=k?packStats(k):null,pr=curPrice(p);
+    return `<a class="prow" href="#/partner/${p.id}"><span class="pname">${esc(p.name||'(без названия)')}<small>${esc(p.manager||'')}${pr?` · ${money(pr)}`:''}${p.status==='archive'?' · архив':''}</small></span><span>${badge(p)}</span><span class="c-x mono">${esc(p.tracker||'—')}</span><span class="c-x muted">${esc(p.buyer)}</span><span class="c-x">${ps?`<span class="tag ${ps.left<=0?'bad':ps.left<=ST.settings.remindLeft?'warn':'ok'}">осталось ${ps.left} из ${k.count}</span>`:'<span class="dim">—</span>'}</span><span class="c-x muted num" style="text-align:right">${s.last?dmy(s.last):'—'}</span></a>`}).join('')}</div>${a.length>shown.length?`<div style="text-align:center;margin-top:12px"><button class="btn" data-act="moreP">Показать ещё ${Math.min(80,a.length-shown.length)}</button></div>`:''}`:'<div class="card empty">Никого не найдено</div>')}
+function selOpts(list,val,all){return `<option value="">${all}</option>`+list.map(x=>`<option ${x===val?'selected':''}>${esc(x)}</option>`).join('')}
+function pgPartners(){const u=UI.partners;
+  return `<div class="top"><h1>Партнёры</h1><div class="sp"></div><button class="btn pri" data-act="newPartner">${ic('plus','s')} Партнёр</button></div>
+  <div class="filters"><input class="search" id="p-q" type="search" placeholder="Поиск: название, трекер, ссылка, промокод, менеджер…" value="${esc(u.q)}" data-autofocus>
+   <select data-pf="geo">${selOpts(ST.settings.geos,u.geo,'Все гео')}</select><select data-pf="source">${selOpts(ST.settings.sources,u.source,'Все источники')}</select><select data-pf="buyer">${selOpts(ST.settings.buyers,u.buyer,'Все байеры')}</select>
+   <select data-pf="status"><option value="active" ${u.status==='active'?'selected':''}>Активные</option><option value="archive" ${u.status==='archive'?'selected':''}>Архив</option><option value="" ${!u.status?'selected':''}>Все</option></select>
+   <select data-pf="sort"><option value="recent" ${u.sort==='recent'?'selected':''}>Сначала недавние</option><option value="name" ${u.sort==='name'?'selected':''}>По названию</option><option value="spend" ${u.sort==='spend'?'selected':''}>По расходу</option></select>
+   <label class="chk"><input type="checkbox" data-pf="recent" ${u.recent?'checked':''}> активны 60 дн.</label></div>
+  <div id="p-list">${partnerRows()}</div>`}
+function partnerForm(p){
+  const isNew=!p;p=p||{geo:UI.partners.geo||'',source:UI.partners.source||'',buyer:UI.partners.buyer||ST.settings.buyers[0]||'',name:'',tracker:'',link:'',manager:'',status:'active',notes:'',priceNote:''};
+  modalForm(isNew?'Новый партнёр':'Редактировать партнёра',
+   `<div class="grid g2"><div>${fld('Гео','geo',p.geo,{list:'dl-geo',req:1})}</div><div>${fld('Источник','source',p.source,{list:'dl-src',req:1})}</div></div>
+    ${fld('Название (Sub в партнёрке)','name',p.name,{req:1})}${fld('Трекер','tracker',p.tracker,{inputmode:'numeric'})}${fld('Ссылка на источник','link',p.link,{ph:'https://t.me/…'})}
+    <div class="grid g2"><div>${fld('Байер','buyer',p.buyer,{list:'dl-buyer'})}</div><div>${fld('Менеджер (контакт)','manager',p.manager,{ph:'@username'})}</div></div>
+    ${fld('Статус','status',p.status||'active',{tag:'select',opts:[['active','Активный'],['archive','Архив']]})}
+    ${fld('Условия цены (текст, если не число)','priceNote',p.priceNote,{ph:'напр. CPA 40$ / 300 KPI'})}${isNew?fld('Цена за 1 интеграцию, $ (необязательно)','price','',{type:'number',step:'0.01',inputmode:'decimal'}):''}
+    ${fld('Заметки','notes',p.notes,{tag:'textarea'})}`,'Сохранить',f=>{
+     const np=isNew?{id:uid('p'),links:[],promos:[],prices:[]}:p;
+     Object.assign(np,{geo:f.geo.trim().toUpperCase(),source:f.source.trim().toUpperCase(),name:f.name.trim(),tracker:f.tracker.trim().replace(/\.0$/,''),link:normLink(f.link),buyer:f.buyer.trim(),manager:f.manager.trim(),status:f.status,priceNote:f.priceNote.trim(),notes:f.notes});
+     if(isNew&&f.price)np.prices=[{from:today(),price:+f.price}];
+     ensureList('geos',np.geo);ensureList('sources',np.source);ensureList('buyers',np.buyer);
+     if(isNew)ST.partners.push(np);save();if(isNew)location.hash='#/partner/'+np.id;else render()},false)}
+function normLink(l){l=(l||'').trim();if(!l||l.startsWith('@')||/^https?:\/\//i.test(l))return l;return 'https://'+l}
+const cpBtn=(t,label,cls='icon-btn')=>`<button class="${cls}" data-act="copy" data-text="${esc(t)}" title="Скопировать">${ic('copy','s')}${label||''}</button>`;
+const openBtn=u=>/^https?:\/\//i.test(u)?`<a class="icon-btn" href="${esc(u)}" target="_blank" rel="noopener noreferrer" title="Открыть">${ic('ext','s')}</a>`:'';
+
+function pgPartner(id){
+  const p=PM.get(id);if(!p)return `<div class="card empty">Партнёр не найден. <a href="#/partners">К списку</a></div>`;
+  const k=openPack(id),ks=k?packStats(k):null;const pr=curPrice(p);
+  const es=[...(EBP.get(id)||[])].sort((a,b)=>b.d.localeCompare(a.d)||0);const shown=UI.pd.all?es:es.slice(0,25);
+  const closed=ST.packs.filter(x=>x.p===id&&x.closed).sort((a,b)=>b.start.localeCompare(a.start));
+  const lk=p.links||[],pm=p.promos||[];
+  const prices=[...(p.prices||[])].sort((a,b)=>b.from.localeCompare(a.from));
+  return `<div class="top"><a class="icon-btn" href="#/partners" title="Назад">${ic('left')}</a><div><h1>${esc(p.name)}</h1><div class="row" style="margin-top:6px">${badge(p)}<span class="chip">байер: ${esc(p.buyer||'—')}</span>${p.status==='archive'?'<span class="tag">архив</span>':''}</div></div><div class="sp"></div>
+    <button class="btn" data-act="editPartner" data-id="${id}">${ic('edit','s')} Изменить</button><a class="btn pri" href="#/add" data-act="addFor" data-id="${id}">${ic('plus','s')} Интеграция</a></div>
+  <div class="grid g3">
+   <div class="card kpi"><div class="l">Трекер</div><div class="row" style="margin-top:6px">${p.tracker?`<button class="chip" style="font-size:18px;padding:5px 14px" data-act="copy" data-text="${esc(p.tracker)}">${esc(p.tracker)} ${ic('copy','s')}</button>`:'<span class="muted">не указан</span>'}</div></div>
+   <div class="card kpi"><div class="l">Источник / менеджер</div>
+     <div class="li" style="padding:4px 0"><span class="val">${p.link?esc(p.link):'—'}</span>${p.link?cpBtn(p.link)+openBtn(p.link):''}</div>
+     <div class="li" style="padding:4px 0"><span class="val">${p.manager?esc(p.manager):'менеджер не указан'}</span>${p.manager?cpBtn(p.manager)+(p.manager.startsWith('@')?`<a class="icon-btn" target="_blank" rel="noopener" href="https://t.me/${esc(p.manager.slice(1))}">${ic('ext','s')}</a>`:''):''}</div></div>
+   <div class="card kpi"><div class="l">Цена за 1 интеграцию</div><div class="v">${pr!==null?money(pr):'—'}</div><div class="d">${esc(p.priceNote||'')} · всего потрачено ${money((PST.get(id)||{}).total||0)}</div></div></div>
+
+  <div class="grid g2 sect">
+   <div class="card"><div class="row"><h2 style="margin:0">Реферальные ссылки <span class="muted">(${lk.length})</span></h2><div class="sp"></div>${lk.length?`<button class="btn sm" data-act="copyAll" data-kind="links" data-id="${id}">${ic('copy','s')} Все</button>`:''}<button class="btn sm" data-act="bulk" data-kind="links" data-id="${id}">Списком</button></div>
+    <div style="margin-top:8px">${lk.length?lk.map(l=>`<div class="li"><span class="lb" title="${esc(l.label)}">${esc(l.label||'Ссылка')}</span><span class="val">${esc(l.url)}</span>${cpBtn(l.url)}${openBtn(l.url)}<button class="icon-btn" data-act="editRef" data-kind="links" data-id="${id}" data-rid="${l.id}">${ic('edit','s')}</button></div>`).join(''):'<div class="muted" style="padding:8px 0">Пока нет ссылок</div>'}</div>
+    <form class="row nw" data-form="addRef" data-kind="links" data-id="${id}" style="margin-top:10px"><input name="label" placeholder="Подпись (акция, события…)" style="flex:1"><input name="value" placeholder="Ссылка" style="flex:2" required><button class="btn pri sm">${ic('plus','s')}</button></form></div>
+   <div class="card"><div class="row"><h2 style="margin:0">Промокоды <span class="muted">(${pm.length})</span></h2><div class="sp"></div>${pm.length?`<button class="btn sm" data-act="copyAll" data-kind="promos" data-id="${id}">${ic('copy','s')} Все</button>`:''}<button class="btn sm" data-act="bulk" data-kind="promos" data-id="${id}">Списком</button></div>
+    <div style="margin-top:8px">${pm.length?pm.map(l=>`<div class="li"><span class="lb" title="${esc(l.label)}">${esc(l.label||'Промокод')}</span><span class="val code">${esc(l.code)}</span>${cpBtn(l.code)}<button class="icon-btn" data-act="editRef" data-kind="promos" data-id="${id}" data-rid="${l.id}">${ic('edit','s')}</button></div>`).join(''):'<div class="muted" style="padding:8px 0">Пока нет промокодов</div>'}</div>
+    <form class="row nw" data-form="addRef" data-kind="promos" data-id="${id}" style="margin-top:10px"><input name="label" placeholder="Подпись (общий, ситуативный…)" style="flex:1"><input name="value" placeholder="PROMO" style="flex:1" required><button class="btn pri sm">${ic('plus','s')}</button></form></div></div>
+
+  <div class="grid g2 sect">
+   <div class="card"><div class="row"><h2 style="margin:0">Пакет интеграций</h2><div class="sp"></div>${k?`<button class="btn sm" data-act="editPack" data-pid="${id}" data-id="${k.id}">${ic('edit','s')}</button><button class="btn sm" data-act="closePack" data-id="${k.id}">Закрыть</button>`:''}<button class="btn sm ${k?'':'pri'}" data-act="newPack" data-pid="${id}">${k?'Новый / продлить':'+ Новый пакет'}</button></div>
+    ${k?`<div style="margin-top:12px"><div class="row" style="justify-content:space-between"><b class="${ks.left<=0?'bad':ks.left<=ST.settings.remindLeft?'warn':''}" style="font-size:20px">Осталось ${Math.max(0,ks.left)} <span class="muted" style="font-size:13px;font-weight:500">из ${k.count}</span></b><span class="muted num">выполнено ${ks.done}</span></div>
+      <div class="prog ${ks.left<=0?'bad':ks.left<=ST.settings.remindLeft?'warn':''}" style="margin:8px 0"><i style="width:${Math.min(100,ks.done/k.count*100)}%"></i></div>
+      ${k.budget?`<div class="row" style="justify-content:space-between"><span>Потрачено <b class="num">${money(ks.spent)}</b> из <span class="num">${money(k.budget)}</span></span><b class="num ${ks.leftSum<=0?'bad':''}">осталось ${money(ks.leftSum)}</b></div>`:'<div class="muted">Бюджет пакета не задан</div>'}
+      <div class="muted" style="margin-top:6px">с ${dmy(k.start)} · ${k.end?'до '+dmy(k.end):'без срока'}${k.note?`<br>${esc(k.note)}`:''}</div></div>`:'<div class="muted" style="margin-top:10px">Нет активного пакета. Укажите, сколько интеграций и на какую сумму заключено — система будет считать остаток и напоминать.</div>'}
+    ${closed.length?`<h3 style="margin-top:16px">Закрытые пакеты</h3>${closed.map(c=>{const s=packStats(c);return `<div class="li"><span class="val" style="font-family:var(--sans)">${dmy(c.start)}${c.end?' – '+dmy(c.end):''} · ${s.done}/${c.count} инт. · ${money(s.spent)}${c.budget?' из '+money(c.budget):''}</span><button class="icon-btn" data-act="reopenPack" data-id="${c.id}" title="Вернуть в работу">${ic('left','s')}</button></div>`}).join('')}`:''}</div>
+   <div class="card"><div class="row"><h2 style="margin:0">История цен</h2><div class="sp"></div><button class="btn sm" data-act="addPrice" data-id="${id}">${ic('plus','s')} Цена</button></div>
+    <div class="muted" style="margin:4px 0 6px">Актуальная цена — последняя по дате. Она подставляется в форму интеграции, но её можно менять вручную; стандартная при этом не меняется.</div>
+    ${prices.length?prices.map((x,i)=>`<div class="li"><span class="lb" style="font-family:var(--sans)">с ${dmy(x.from)}</span><span class="val num" style="font-family:var(--sans);color:var(--text)">${money(x.price,2)} ${i===0?'<span class="tag ok">актуальная</span>':''}</span><button class="icon-btn" data-act="delPrice" data-id="${id}" data-i="${(p.prices||[]).indexOf(x)}">${ic('trash','s')}</button></div>`).join(''):'<div class="muted">Цена не задана</div>'}
+    ${p.notes?`<h3 style="margin-top:16px">Заметки</h3><div style="white-space:pre-wrap">${esc(p.notes)}</div>`:''}</div></div>
+
+  <div class="sect"><div class="row"><h2 style="margin:0">Интеграции <span class="muted">(${es.length})</span></h2><div class="sp"></div></div>
+   ${es.length?`<div class="tw" style="margin-top:10px"><table><thead><tr><th>Дата</th><th>Неделя</th><th>Тип</th><th class="r">Сумма</th><th>Ссылка / заметка</th><th></th></tr></thead><tbody>${shown.map(e=>`<tr><td class="num">${dmy(e.d)}</td><td class="muted">${weekKey(e.d)}</td><td>${e.t==='i'?'':`<span class="tag ${e.t==='r'?'bad':'warn'}">${entryTypeLabel(e)}</span>`}${e.k&&e.t==='i'?'<span class="tag ok">пакет</span>':''}</td><td class="r num ${e.a<0?'bad':''}">${money(e.a,2)}</td><td class="wrap" style="max-width:360px">${e.u?`<span class="mono" style="font-size:12px">${esc(e.u.replace(/^https?:\/\//,'').slice(0,44))}${e.u.length>52?'…':''}</span> ${cpBtn(e.u)}${openBtn(e.u)}`:''} ${e.n?`<span class="muted">${esc(e.n.replace(e.u,'').trim().slice(0,90))}</span>`:''}</td><td class="r"><button class="icon-btn" data-act="editEntry" data-id="${e.id}">${ic('edit','s')}</button></td></tr>`).join('')}</tbody></table></div>${es.length>25&&!UI.pd.all?`<div style="text-align:center;margin-top:10px"><button class="btn" data-act="allEntries">Показать все ${es.length}</button></div>`:''}`:'<div class="card empty" style="margin-top:10px">Интеграций пока нет</div>'}</div>`}
+
+/* ================= entries (add/edit) ================= */
+function entryForm(e){
+  const p=PM.get(e.p);
+  modalForm('Изменить запись',`<div class="muted" style="margin-bottom:10px">${esc(p.name)} · ${esc(p.geo)} ${esc(p.source)}</div>
+   <div class="grid g2"><div>${fld('Дата','d',e.d,{type:'date',req:1})}</div><div>${fld('Тип','t',e.t,{tag:'select',opts:[['i','Интеграция'],['r','Возврат / скидка (−)'],['x','Корректировка (±)']]})}</div></div>
+   ${fld('Сумма, $','a',e.t==='r'?Math.abs(e.a):e.a,{type:'number',step:'0.01',inputmode:'decimal',req:1})}${fld('Ссылка на интеграцию','u',e.u)}${fld('Заметка','n',e.n,{tag:'textarea',rows:2})}`,'Сохранить',f=>{
+    e.d=f.d;e.t=f.t;e.a=r2(f.t==='r'?-Math.abs(+f.a):+f.a);e.u=normLink(f.u);e.n=f.n;relinkEntry(e);save();render()},false,
+   `<button type="button" class="btn danger" data-act="delEntry" data-id="${e.id}" style="margin-right:auto">${ic('trash','s')} Удалить</button>`)}
+function relinkEntry(e){const k=packFor(e.p,e.d);e.k=k?k.id:(ST.packs.find(x=>x.id===e.k&&e.d>=x.start&&(!x.end||e.d<=x.end))?e.k:'')}
+function addEntry(o){const e={id:uid('e'),p:o.p,d:o.d,a:o.a,t:o.t,u:o.u||'',n:o.n||'',k:'',cr:Date.now()};relinkEntry(e);ST.entries.push(e);save();return e}
+function pickerHtml(){
+  const p=PM.get(UI.add.pid);
+  if(p)return `<div class="sel-p"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b><div class="muted">${esc(p.geo)} · ${esc(p.source)} · ${esc(p.buyer)} ${p.tracker?'· '+esc(p.tracker):''}</div></div><button type="button" class="btn sm ghost" data-act="clearP">Сменить</button></div>`;
+  const recent=[];const seen=new Set();for(const e of [...ST.entries].sort((a,b)=>(b.cr||0)-(a.cr||0)||b.d.localeCompare(a.d))){if(e.t!=='i'||seen.has(e.p))continue;seen.add(e.p);const pp=PM.get(e.p);if(pp&&pp.status!=='archive')recent.push(pp);if(recent.length>=8)break}
+  return `<input id="ap-q" placeholder="Начните вводить: название, трекер, гео…" data-autofocus><div id="ap-sugg"></div>
+   <div class="row" style="margin-top:10px"><span class="muted">Недавние:</span>${recent.map(r=>`<button type="button" class="chip" style="font-family:var(--sans)" data-act="pickP" data-id="${r.id}">${esc(r.name)} <span class="dim">${esc(r.geo)} ${esc(r.source)}</span></button>`).join('')}</div>`}
+function pgAdd(){
+  const u=UI.add;if(!u.date)u.date=today();
+  const sess=u.session.map(id=>ST.entries.find(e=>e.id===id)).filter(Boolean).reverse();
+  return `<div class="top"><h1>Новая запись</h1><div class="sp"></div><span class="muted">интеграция, возврат или корректировка</span></div>
+  <div class="grid g2"><div class="card"><form id="add-form" autocomplete="off">
+    <label class="f">Партнёр</label><div id="ap-picker" style="margin:-4px 0 14px">${pickerHtml()}</div>
+    <div id="ap-rest" class="${u.pid?'':'hide'}">
+     <div class="grid g2"><div>${fld('Дата','d',u.date,{type:'date',req:1})}</div><div>${fld('Тип','t',u.type,{tag:'select',opts:[['i','Интеграция'],['r','Возврат / скидка (−)'],['x','Корректировка (±)']]})}</div></div>
+     <label class="f">Сумма, $<input name="a" id="ap-a" value="${esc(u.amount)}" type="number" step="0.01" inputmode="decimal" required><span id="ap-hint" style="font-weight:400;display:block;margin-top:4px"></span></label>
+     ${fld('Ссылка на интеграцию','u',u.url,{ph:'https://…'})}${fld('Заметка','n',u.note,{ph:'необязательно'})}
+     <div id="ap-pack"></div>
+     <div class="row" style="margin-top:6px"><button class="btn pri" style="flex:1;min-height:44px">Сохранить</button></div>
+     <label class="chk" style="margin-top:10px"><input type="checkbox" id="ap-clear" ${u.clear?'checked':''}> после сохранения сбрасывать партнёра</label>
+    </div></form></div>
+   <div><h2>Добавлено в этой сессии</h2>${sess.length?`<div class="tw"><table><tbody>${sess.map(e=>{const p=PM.get(e.p);return `<tr><td>${esc(p.name)}<div class="muted" style="font-size:12px">${esc(p.geo)} ${esc(p.source)} · ${dmy(e.d)}</div></td><td class="r num ${e.a<0?'bad':''}">${money(e.a,2)}</td><td class="r"><button class="icon-btn" data-act="undoEntry" data-id="${e.id}" title="Удалить">${ic('trash','s')}</button></td></tr>`}).join('')}</tbody></table></div>`:'<div class="card empty">Здесь появятся записи, которые вы добавите сейчас</div>'}</div></div>`}
+function addInit(){addPackInfo();addHint();wireSugg()}
+function stdPrice(){const p=PM.get(UI.add.pid);return p?curPrice(p,UI.add.date):null}
+function addHint(){const h=$('#ap-hint');if(!h)return;const sp=stdPrice(),u=UI.add;
+  if(u.type!=='i'){h.innerHTML=u.type==='r'?'<span class="muted">Введите сумму возврата — она будет сохранена со знаком «−»</span>':'<span class="muted">Можно вводить с минусом или плюсом</span>';return}
+  if(sp===null){h.innerHTML='<span class="muted">У партнёра нет стандартной цены — введите сумму</span>';return}
+  const cur=+$('#ap-a').value;h.innerHTML=`<span class="muted">Стандартная цена: <b>${money(sp,2)}</b>${u.amountDirty&&cur!==sp?` · <a href="#" data-act="resetPrice">вернуть</a>`:''}${u.amountDirty&&cur!==sp?' · <span class="warn">своя цена</span>':''}</span>`}
+function addPackInfo(){const box=$('#ap-pack');if(!box)return;const u=UI.add;const k=u.pid?packFor(u.pid,u.date):null;
+  if(!u.pid){box.innerHTML='';return}
+  if(!k){const ok=openPack(u.pid);box.innerHTML=`<div class="muted" style="margin-bottom:10px">${ok?`Дата раньше начала пакета (${dmy(ok.start)}) — запись не спишется с пакета`:'Нет активного пакета — запись просто учтётся в расходах'}</div>`;return}
+  const s=packStats(k);box.innerHTML=`<div class="card" style="padding:10px 12px;background:var(--panel2);margin-bottom:10px"><div class="row" style="justify-content:space-between"><span>Пакет: осталось <b class="${s.left<=ST.settings.remindLeft?'warn':''}">${s.left}</b> из ${k.count}${u.type==='i'?` → <b>${s.left-1}</b>`:''}</span>${s.leftSum!==null?`<span class="muted">остаток ${money(s.leftSum)}</span>`:''}</div></div>`}
+function setAmountFromPrice(){const u=UI.add;if(u.type==='i'&&!u.amountDirty){const sp=stdPrice();u.amount=sp===null?'':String(sp);const el=$('#ap-a');if(el)el.value=u.amount}}
+function wireSugg(){const q=$('#ap-q');if(!q)return;
+  q.addEventListener('input',()=>{const t=q.value.trim().toLowerCase();const box=$('#ap-sugg');if(!t){box.innerHTML='';return}
+    const a=ST.partners.filter(p=>p.status!=='archive'&&t.split(/\s+/).every(w=>[p.name,p.tracker,p.geo,p.source,p.buyer,p.manager,p.link].join(' ').toLowerCase().includes(w))).slice(0,8);
+    box.innerHTML=a.length?`<div class="sugg">${a.map(p=>`<button type="button" data-act="pickP" data-id="${p.id}"><b style="flex:1">${esc(p.name)}</b><span class="muted">${esc(p.geo)} ${esc(p.source)}</span><span class="mono dim">${esc(p.tracker)}</span></button>`).join('')}</div>`:'<div class="muted" style="margin-top:8px">Ничего не найдено</div>'});
+  q.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const b=$('#ap-sugg button');if(b)b.click()}})}
+
+/* ================= calendar ================= */
+function pgCal(){
+  const u=UI.cal;if(!u.month)u.month=today().slice(0,7);const m=u.month;
+  const first=m+'-01',last=addDays(addMonth(m,1)+'-01',-1);const start=monday(first),end=addDays(monday(last),6);
+  const es=ents({from:start,to:end,geo:u.geo,source:u.source,buyer:u.buyer});const by=new Map();
+  for(const e of es){let x=by.get(e.d);if(!x)by.set(e.d,x={n:0,s:0});x.s+=e.a;if(e.t==='i')x.n++}
+  let cells='',d=start,wsum=0,wcnt=0;const td=today();
+  ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(x=>cells+=`<div class="hd">${x}</div>`);cells+='<div class="hd">Неделя</div>';
+  let n=0;while(d<=end){const x=by.get(d);wsum+=x?x.s:0;wcnt+=x?x.n:0;
+    cells+=`<button class="day ${d.slice(0,7)!==m?'out':''} ${d===td?'today':''} ${d===u.sel?'sel':''}" data-act="selDay" data-d="${d}"><b>${+d.slice(8)}</b>${x?`<span class="s">${nf0.format(x.s)}</span><span class="n">${x.n?x.n+' инт.':''}</span>`:''}</button>`;
+    n++;if(n%7===0){cells+=`<div class="wk"><b>${wsum?money(wsum):''}</b><span>${weekKey(addDays(d,-6)).slice(5)}</span></div>`;wsum=0;wcnt=0}d=addDays(d,1)}
+  const mes=es.filter(e=>e.d.slice(0,7)===m);
+  const sel=u.sel,sd=sel?es.filter(e=>e.d===sel):[];
+  return `<div class="top"><h1>Календарь</h1><div class="sp"></div><div class="row"><button class="icon-btn" data-act="calNav" data-n="-1">${ic('left')}</button><b style="min-width:130px;text-align:center">${mLabel(m)}</b><button class="icon-btn" data-act="calNav" data-n="1">${ic('right')}</button><button class="btn sm" data-act="calNav" data-n="0">Сегодня</button></div></div>
+  <div class="filters"><select data-cf="geo">${selOpts(ST.settings.geos,u.geo,'Все гео')}</select><select data-cf="source">${selOpts(ST.settings.sources,u.source,'Все источники')}</select><select data-cf="buyer">${selOpts(ST.settings.buyers,u.buyer,'Все байеры')}</select><span class="sp"></span><span class="muted">За месяц: <b class="num" style="color:var(--text)">${money(sum(mes,e=>e.a))}</b> · интеграций: <b style="color:var(--text)">${mes.filter(e=>e.t==='i').length}</b></span></div>
+  <div class="cal">${cells}</div>
+  ${sel?`<div class="card" style="margin-top:14px"><div class="row"><h2 style="margin:0">${dmy(sel)}</h2><span class="muted">${sd.length} зап. · ${money(sum(sd,e=>e.a))}</span><div class="sp"></div><a class="btn pri sm" href="#/add" data-act="addDate" data-d="${sel}">${ic('plus','s')} Добавить на эту дату</a></div>
+   ${sd.length?`<div style="margin-top:8px">${sd.map(e=>{const p=PM.get(e.p);return `<div class="li"><span class="lb" style="max-width:none;flex:1"><a href="#/partner/${p.id}" style="color:inherit">${esc(p.name)}</a> <span class="muted" style="font-weight:400">${esc(p.geo)} ${esc(p.source)}</span>${e.t!=='i'?` <span class="tag ${e.t==='r'?'bad':'warn'}">${entryTypeLabel(e)}</span>`:''}</span><b class="num ${e.a<0?'bad':''}">${money(e.a,2)}</b>${e.u?cpBtn(e.u)+openBtn(e.u):''}<button class="icon-btn" data-act="editEntry" data-id="${e.id}">${ic('edit','s')}</button></div>`}).join('')}</div>`:'<div class="muted" style="margin-top:8px">В этот день записей нет</div>'}</div>`:''}`}
+
+/* ================= weekly report ================= */
+function weekData(key,buyer,geo){
+  const mon=weekStart(key),sun=addDays(mon,6);const m=new Map();
+  for(const e of ents({from:mon,to:sun,buyer,geo}))m.set(e.p,r2((m.get(e.p)||0)+e.a));
+  const gi=g=>{const i=ST.settings.geos.indexOf(g);return i<0?99:i},si=s=>{const i=ST.settings.sources.indexOf(s);return i<0?99:i};const pi=new Map(ST.partners.map((p,i)=>[p.id,i]));
+  const rows=[...m.entries()].filter(([,v])=>Math.abs(v)>=.005).map(([id,v])=>({p:PM.get(id),v})).sort((a,b)=>gi(a.p.geo)-gi(b.p.geo)||si(a.p.source)-si(b.p.source)||pi.get(a.p.id)-pi.get(b.p.id));
+  return {mon,sun,rows}}
+function weekTSV(key,rows,header,comma){const f=v=>{const s=v.toFixed(2);return comma?s.replace('.',','):s};
+  return (header?['Гео','Источник','Трекер','Неделя','Затраты'].join('\t')+'\n':'')+rows.map(r=>[r.p.geo,r.p.source,r.p.tracker,key,f(r.v)].join('\t')).join('\n')}
+function pgWeek(){
+  const u=UI.week;if(!u.key)u.key=weekKey(addDays(today(),-7));
+  const {mon,sun,rows}=weekData(u.key,u.buyer,u.geo);const tot=sum(rows,r=>r.v);
+  const wkNow=weekKey(today());
+  return `<div class="top"><h1>Недельный отчёт</h1><div class="sp"></div><div class="row"><button class="icon-btn" data-act="weekNav" data-n="-1">${ic('left')}</button><input id="wk-key" value="${u.key}" style="width:120px;text-align:center;font-weight:700" title="Например 2026-W43"><button class="icon-btn" data-act="weekNav" data-n="1">${ic('right')}</button><button class="btn sm" data-act="weekNav" data-n="0">Текущая (${wkNow.slice(5)})</button></div></div>
+  <div class="filters"><span class="muted">${dmy(mon)} — ${dmy(sun)}</span><span class="sp"></span><select data-wf="geo">${selOpts(ST.settings.geos,u.geo,'Все гео')}</select><select data-wf="buyer">${selOpts(ST.settings.buyers,u.buyer,'Все байеры')}</select>
+   <label class="chk"><input type="checkbox" data-wf="header" ${u.header?'checked':''}> с заголовком</label><label class="chk"><input type="checkbox" data-wf="comma" ${u.comma?'checked':''}> запятая в суммах</label>
+   <button class="btn pri" data-act="copyWeek" ${rows.length?'':'disabled'}>${ic('copy','s')} Копировать таблицу</button></div>
+  ${rows.length?`<div class="tw"><table class="wk-t"><thead><tr><th>Гео</th><th>Источник</th><th>Трекер</th><th>Неделя</th><th class="r">Затраты</th><th>Партнёр</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.p.geo)}</td><td>${esc(r.p.source)}</td><td class="mono">${esc(r.p.tracker)}</td><td>${u.key}</td><td class="r num ${r.v<0?'bad':''}">${num2(r.v)}</td><td class="muted"><a href="#/partner/${r.p.id}" style="color:inherit">${esc(r.p.name)}</a></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="4">Итого · ${rows.length} строк</td><td class="r num">${num2(tot)}</td><td></td></tr></tfoot></table></div>
+   <div class="muted" style="margin-top:8px">Копируется 5 колонок (гео, источник, трекер, неделя, затраты) — вставляйте сразу в таблицу. Строки с нулевыми затратами скрыты, возвраты идут со знаком «−».</div>`:'<div class="card empty">За эту неделю затрат нет</div>'}`}
+
+/* ================= stats ("Косты") ================= */
+function statsData(){
+  const u=UI.stats,nb=ST.settings.noBrand;if(!u.year)u.year=today().slice(0,4);
+  const es=ents({geo:u.geo,source:u.source,buyer:u.buyer});
+  const keyOf=u.mode==='month'?(e=>e.d.slice(0,7)):(e=>weekKey(e.d));
+  const rows=new Map();
+  for(const e of es){const k=keyOf(e);if(u.mode==='month'?!k.startsWith(u.year):!k.startsWith(u.year+'-'))continue;
+    let r=rows.get(k);if(!r)rows.set(k,r={k,by:new Map(),tot:0,cnt:0});const p=PM.get(e.p);const dv=p[u.dim];r.by.set(dv,(r.by.get(dv)||0)+e.a);if(!(nb&&p.source==='BRAND')){r.tot+=e.a;if(e.t==='i')r.cnt++}}
+  if(u.mode==='month'){for(const r of ST.fd){if(r.m.startsWith(u.year)&&!rows.has(r.m))rows.set(r.m,{k:r.m,by:new Map(),tot:0,cnt:0})}}
+  const keys=[...rows.keys()].sort().reverse();
+  const dv=dimList(u.dim).filter(v=>keys.some(k=>Math.abs(rows.get(k).by.get(v)||0)>.004));
+  return {u,rows,keys,dv,nb}}
+function statsFd(k){const u=UI.stats;return u.buyer?null:fdSum(k,{geo:u.geo,source:u.source})}
+function pgStats(){
+  const {u,rows,keys,dv,nb}=statsData();const mon=u.mode==='month';
+  const years=[...new Set([today().slice(0,4),...ST.entries.map(e=>e.d.slice(0,4)),...ST.fd.map(r=>r.m.slice(0,4))])].sort().reverse();
+  const tb=keys.map(k=>{const r=rows.get(k);const f=mon?statsFd(k):null;
+    return `<tr><td><b>${mon?mLabel(k):k}</b>${!mon?`<div class="muted" style="font-size:11px">${dmy(weekStart(k))}</div>`:''}</td>${dv.map(v=>`<td class="r num ${(r.by.get(v)||0)<0?'bad':''}">${r.by.get(v)?num2(r.by.get(v)):'<span class="dim">—</span>'}</td>`).join('')}<td class="r num" style="font-weight:700">${num2(r.tot)}</td>${mon?`<td class="r num">${f?f.fd||'<span class="dim">—</span>':'<span class="dim">—</span>'}</td><td class="r num">${f&&f.fails?f.fails:'<span class="dim">—</span>'}</td><td class="r num">${f?cpaS(cpa(r.tot,f.fd,f.fails,0)):'—'}</td><td class="r num">${f&&f.fails?cpaS(cpa(r.tot,f.fd,f.fails,1)):'<span class="dim">—</span>'}</td><td class="r num">${f&&f.fails?cpaS(cpa(r.tot,f.fd,f.fails,.5)):'<span class="dim">—</span>'}</td>`:`<td class="r num muted">${r.cnt}</td>`}</tr>`}).join('');
+  // totals
+  const tot=sum(keys,k=>rows.get(k).tot);let ft='';
+  if(mon){const T=keys.reduce((a,k)=>{const f=statsFd(k)||{fd:0,fails:0};a.fd+=f.fd;a.fa+=f.fails;return a},{fd:0,fa:0});
+    ft=`<td class="r num">${T.fd||'—'}</td><td class="r num">${T.fa||'—'}</td><td class="r num">${cpaS(cpa(tot,T.fd,T.fa,0))}</td><td class="r num">${T.fa?cpaS(cpa(tot,T.fd,T.fa,1)):'—'}</td><td class="r num">${T.fa?cpaS(cpa(tot,T.fd,T.fa,.5)):'—'}</td>`}else ft=`<td class="r num">${sum(keys,k=>rows.get(k).cnt)}</td>`;
+  const fm=u.fdMonth||today().slice(0,7);
+  const fds=ST.fd.filter(r=>r.m===fm);
+  return `<div class="top"><h1>Косты</h1><div class="sp"></div><button class="btn" data-act="copyStats">${ic('copy','s')} Копировать таблицу</button></div>
+  <div class="filters"><div class="seg"><button class="${mon?'on':''}" data-act="stMode" data-v="month">Месяцы</button><button class="${!mon?'on':''}" data-act="stMode" data-v="week">Недели</button></div>
+   <div class="seg">${['geo','source','buyer'].map(d=>`<button class="${u.dim===d?'on':''}" data-act="stDim" data-v="${d}">${dimName[d]}</button>`).join('')}</div>
+   <select data-sf="year">${years.map(y=>`<option ${y===u.year?'selected':''}>${y}</option>`).join('')}</select>
+   <select data-sf="geo">${selOpts(ST.settings.geos,u.geo,'Все гео')}</select><select data-sf="source">${selOpts(ST.settings.sources,u.source,'Все источники')}</select><select data-sf="buyer">${selOpts(ST.settings.buyers,u.buyer,'Все байеры')}</select>
+   <label class="chk"><input type="checkbox" data-act="toggleNoBrand" ${nb?'checked':''}> «Общее» без BRAND</label></div>
+  ${keys.length?`<div class="tw"><table id="st-table"><thead><tr><th>${mon?'Месяц':'Неделя'}</th>${dv.map(v=>`<th class="r">${esc(v)}</th>`).join('')}<th class="r">Общее</th>${mon?'<th class="r">FD</th><th class="r">Фейлы</th><th class="r">CPA</th><th class="r">CPA+фейлы</th><th class="r">CPA+½ фейлов</th>':'<th class="r">Интеграций</th>'}</tr></thead><tbody>${tb}</tbody><tfoot><tr><td>Итого</td>${dv.map(v=>`<td class="r num">${num2(sum(keys,k=>rows.get(k).by.get(v)||0))}</td>`).join('')}<td class="r num">${num2(tot)}</td>${ft}</tr></tfoot></table></div>
+   <div class="muted" style="margin-top:8px">CPA = расход / FD · CPA+фейлы = расход / (FD + фейлы) · CPA+½ фейлов = расход / (FD + 50% фейлов).${nb?' «Общее» считается без источника BRAND, как в исходной таблице; колонка BRAND при группировке по источникам показана отдельно.':''}${u.buyer?' FD нельзя разбить по байерам, поэтому при фильтре по байеру они не показываются.':''}</div>`:'<div class="card empty">Нет данных за выбранный период</div>'}
+  <div class="sect"><div class="row"><h2 style="margin:0">FD и фейлы</h2><div class="sp"></div><div class="row"><button class="icon-btn" data-act="fdNav" data-n="-1">${ic('left')}</button><b style="min-width:130px;text-align:center">${mLabel(fm)}</b><button class="icon-btn" data-act="fdNav" data-n="1">${ic('right')}</button></div></div>
+   <div class="muted" style="margin:4px 0 10px">Вводите вручную за месяц. Можно одной строкой на весь месяц (гео и источник пустые) или несколькими строками по гео/источникам — в «Общем» они суммируются.</div>
+   <div class="card">${fds.length?fds.map(r=>`<div class="row nw" style="margin-bottom:8px;flex-wrap:wrap"><input data-fdf="${r.id}" data-f="geo" list="dl-geo" placeholder="Гео (все)" value="${esc(r.geo)}" style="width:120px"><input data-fdf="${r.id}" data-f="source" list="dl-src" placeholder="Источник (все)" value="${esc(r.source)}" style="width:150px"><input data-fdf="${r.id}" data-f="fd" type="number" inputmode="numeric" placeholder="FD" value="${r.fd}" style="width:90px"><input data-fdf="${r.id}" data-f="fails" type="number" inputmode="numeric" placeholder="Фейлы" value="${r.fails}" style="width:90px"><button class="icon-btn" data-act="delFd" data-id="${r.id}">${ic('trash','s')}</button></div>`).join(''):'<div class="muted" style="margin-bottom:10px">За этот месяц данных нет</div>'}
+    <button class="btn sm" data-act="addFd">${ic('plus','s')} Строка</button><span class="muted" style="margin-left:12px">Итого: FD ${fdSum(fm).fd} · фейлы ${fdSum(fm).fails}</span></div></div>`}
+
+/* ================= settings ================= */
+function listEditor(key,title){
+  const used=k=>ST.partners.filter(p=>p[key==='geos'?'geo':key==='sources'?'source':'buyer']===k).length;
+  return `<div class="card"><h2>${title}</h2><div class="row">${ST.settings[key].map(k=>`<span class="chip" style="padding:3px 4px 3px 10px;font-family:var(--sans)">${esc(k)} <span class="dim">${used(k)}</span><button class="icon-btn" style="width:22px;height:22px" data-act="renList" data-key="${key}" data-v="${esc(k)}" title="Переименовать">${ic('edit','s')}</button><button class="icon-btn" style="width:22px;height:22px" data-act="delList" data-key="${key}" data-v="${esc(k)}" title="${used(k)?'Используется':'Удалить'}">${ic('x','s')}</button></span>`).join('')||'<span class="muted">пусто</span>'}</div>
+   <form class="row nw" data-form="addList" data-key="${key}" style="margin-top:12px"><input name="v" placeholder="Добавить…" style="max-width:260px"><button class="btn sm">${ic('plus','s')} Добавить</button></form></div>`}
+function pgSettings(){
+  const s=ST.settings,c=CL.cfg;
+  return `<div class="top"><h1>Настройки</h1></div>
+  <div class="grid g2">${listEditor('geos','Гео')}${listEditor('sources','Источники')}${listEditor('buyers','Байеры')}
+   <div class="card"><h2>Напоминания</h2><form data-form="remind"><div class="grid g2"><div>${fld('Предупреждать, когда осталось интеграций ≤','remindLeft',s.remindLeft,{type:'number'})}</div><div>${fld('Предупреждать за N дней до конца контракта','remindDays',s.remindDays,{type:'number'})}</div></div><button class="btn sm">Сохранить</button></form></div></div>
+  <div class="grid g2 sect">
+   <div class="card"><h2>Код доступа</h2><form data-form="code"><label class="f">Текущий код<input type="password" name="old" required autocomplete="current-password"></label><label class="f">Новый код (минимум 4 символа)<input type="password" name="n1" required minlength="4" autocomplete="new-password"></label><label class="f">Повторите новый код<input type="password" name="n2" required autocomplete="new-password"></label><div class="row"><button class="btn pri sm">Сменить код</button><span class="muted">На других устройствах потребуется ввести новый код.</span></div></form></div>
+   <div class="card"><h2>Резервная копия</h2><div class="muted" style="margin-bottom:10px">Все данные хранятся в браузере этого устройства (и в облаке, если оно подключено). Скачайте копию — это самый надёжный бэкап.</div>
+    <div class="row"><button class="btn" data-act="export">Скачать бэкап (.json)</button><label class="btn" style="cursor:pointer">Загрузить из файла<input type="file" id="imp-file" accept=".json,application/json" class="hide"></label></div></div></div>
+  <div class="card sect"><div class="row"><h2 style="margin:0">Синхронизация между устройствами</h2><div class="sp"></div><span class="tag ${c?'ok':''}">${c?'подключено':'выключено'}</span></div>
+   <div class="muted" style="margin:6px 0 12px">Чтобы Mac и iPhone видели одни и те же данные, подключите бесплатную базу <b>Supabase</b>: создайте проект, выполните SQL ниже в SQL Editor, а затем вставьте Project URL и anon key.</div>
+   <form data-form="cloud"><div class="grid g2"><div>${fld('Project URL','url',c?c.url:'',{ph:'https://xxxx.supabase.co'})}</div><div>${fld('anon / public key','key',c?c.key:'',{ph:'eyJ…'})}</div></div><div class="row"><button class="btn pri sm">${c?'Сохранить и синхронизировать':'Подключить'}</button>${c?`<button type="button" class="btn sm" data-act="syncNow">Синхронизировать сейчас</button><button type="button" class="btn sm danger" data-act="cloudOff">Отключить</button>`:''}</div></form>
+   <details style="margin-top:12px"><summary class="muted" style="cursor:pointer">SQL для Supabase</summary><div class="row" style="margin:8px 0"><button class="btn sm" data-act="copy" data-text="${esc(SQL)}">${ic('copy','s')} Копировать SQL</button></div><div class="pre">${esc(SQL)}</div></details></div>
+  <div class="card sect"><div class="row"><div><h2 style="margin:0">Этот браузер</h2><div class="muted">Вход запоминается на этом устройстве.</div></div><div class="sp"></div><button class="btn" data-act="logout">Выйти</button></div></div>`}
+const SQL=`create table if not exists app_state (
+  id text primary key,
+  data jsonb not null,
+  updated_at timestamptz default now()
+);
+alter table app_state enable row level security;
+create policy "app_state_all" on app_state
+  for all to anon using (true) with check (true);`;
+
+/* ================= actions ================= */
+const ACT={
+  closeModal(){closeModal()},
+  async copy(t,ev){ev.preventDefault();const ok=await copyText(t.dataset.text);toast(ok?'Скопировано':'Не удалось скопировать');if(ok){t.classList.add('done');const old=t.innerHTML;if(t.classList.contains('icon-btn'))t.innerHTML=ic('check','s');setTimeout(()=>{t.classList.remove('done');if(t.classList.contains('icon-btn'))t.innerHTML=old},1100)}},
+  newPartner(){partnerForm(null)},
+  editPartner(t){partnerForm(PM.get(t.dataset.id))},
+  moreP(){UI.partners.limit+=80;$('#p-list').innerHTML=partnerRows()},
+  addFor(t){UI.add.pid=t.dataset.id;UI.add.amountDirty=false;UI.add.amount='';setAmountFromPrice()},
+  addDate(t){UI.add.date=t.dataset.d},
+  allEntries(){UI.pd.all=true;render()},
+  copyAll(t){const p=PM.get(t.dataset.id);const txt=t.dataset.kind==='links'?p.links.map(l=>(l.label?l.label+': ':'')+l.url).join('\n'):p.promos.map(l=>(l.label?l.label+': ':'')+l.code).join('\n');copyText(txt).then(ok=>toast(ok?'Скопировано: '+(t.dataset.kind==='links'?p.links.length+' ссылок':p.promos.length+' промокодов'):'Не удалось скопировать'))},
+  bulk(t){const p=PM.get(t.dataset.id),kind=t.dataset.kind;
+    modalForm(kind==='links'?'Добавить ссылки списком':'Добавить промокоды списком',`<div class="muted" style="margin-bottom:8px">По одной записи в строке. Формат: <b>Подпись | ${kind==='links'?'ссылка':'промокод'}</b> (можно вставить из таблицы — подпись и значение через Tab). Строка без подписи тоже подойдёт.</div>${fld('Список','text','',{tag:'textarea',rows:9,ph:kind==='links'?'Акции | https://…\nСобытия | https://…':'Общий | WELCOME100\nСитуативный | NIGHT50'})}`,'Добавить',f=>{
+      let n=0;for(const line of f.text.split('\n')){const s=line.trim();if(!s)continue;let label='',val=s;const m=s.split(/\t|\s\|\s|\|/);if(m.length>1){label=m[0].trim();val=m.slice(1).join(' ').trim()}
+        if(kind==='links')p.links.push({id:uid('l'),label,url:val});else p.promos.push({id:uid('c'),label,code:val});n++}
+      save();render();toast('Добавлено: '+n)},true)},
+  editRef(t){const p=PM.get(t.dataset.id),kind=t.dataset.kind;const r=p[kind].find(x=>x.id===t.dataset.rid);
+    modalForm('Изменить',fld('Подпись','label',r.label)+fld(kind==='links'?'Ссылка':'Промокод','value',kind==='links'?r.url:r.code,{req:1}),'Сохранить',f=>{r.label=f.label.trim();if(kind==='links')r.url=f.value.trim();else r.code=f.value.trim();save();render()},false,
+      `<button type="button" class="btn danger" style="margin-right:auto" data-act="delRef" data-kind="${kind}" data-id="${p.id}" data-rid="${r.id}">${ic('trash','s')} Удалить</button>`)},
+  delRef(t){if(!confirm('Удалить?'))return;const p=PM.get(t.dataset.id);p[t.dataset.kind]=p[t.dataset.kind].filter(x=>x.id!==t.dataset.rid);save();closeModal();render()},
+  newPack(t){packForm(t.dataset.pid,null)},
+  editPack(t){packForm(t.dataset.pid,ST.packs.find(k=>k.id===t.dataset.id))},
+  closePack(t){const k=ST.packs.find(x=>x.id===t.dataset.id);if(!confirm('Закрыть текущий пакет? Его можно будет вернуть в работу.'))return;k.closed=true;save();render()},
+  reopenPack(t){const k=ST.packs.find(x=>x.id===t.dataset.id);if(openPack(k.p)){alert('Сначала закройте текущий активный пакет');return}k.closed=false;save();render()},
+  addPrice(t){const p=PM.get(t.dataset.id);modalForm('Новая цена',fld('Действует с даты','from',today(),{type:'date',req:1})+fld('Цена за 1 интеграцию, $','price','',{type:'number',step:'0.01',inputmode:'decimal',req:1}),'Добавить',f=>{p.prices=(p.prices||[]).filter(x=>x.from!==f.from);p.prices.push({from:f.from,price:+f.price});save();render()})},
+  delPrice(t){if(!confirm('Удалить цену из истории?'))return;PM.get(t.dataset.id).prices.splice(+t.dataset.i,1);save();render()},
+  editEntry(t){const e=ST.entries.find(x=>x.id===t.dataset.id);if(e)entryForm(e)},
+  delEntry(t){if(!confirm('Удалить запись?'))return;ST.entries=ST.entries.filter(x=>x.id!==t.dataset.id);UI.add.session=UI.add.session.filter(x=>x!==t.dataset.id);save();closeModal();render()},
+  undoEntry(t){ST.entries=ST.entries.filter(x=>x.id!==t.dataset.id);UI.add.session=UI.add.session.filter(x=>x!==t.dataset.id);save();render();toast('Запись удалена')},
+  pickP(t){UI.add.pid=t.dataset.id;UI.add.amountDirty=false;setAmountFromPrice();render()},
+  clearP(){UI.add.pid='';UI.add.amount='';UI.add.amountDirty=false;render()},
+  resetPrice(t,ev){ev.preventDefault();UI.add.amountDirty=false;setAmountFromPrice();addHint()},
+  selDay(t){UI.cal.sel=t.dataset.d;render()},
+  calNav(t){const n=+t.dataset.n;UI.cal.month=n===0?today().slice(0,7):addMonth(UI.cal.month||today().slice(0,7),n);if(n===0)UI.cal.sel=today();render()},
+  weekNav(t){const n=+t.dataset.n;UI.week.key=n===0?weekKey(today()):weekKey(addDays(weekStart(UI.week.key),7*n));render()},
+  async copyWeek(){const u=UI.week,{rows}=weekData(u.key,u.buyer,u.geo);const ok=await copyText(weekTSV(u.key,rows,u.header,u.comma));toast(ok?`Скопировано строк: ${rows.length}`:'Не удалось скопировать')},
+  stMode(t){UI.stats.mode=t.dataset.v;render()},stDim(t){UI.stats.dim=t.dataset.v;render()},
+  async copyStats(){const el=$('#st-table');if(!el)return;const tsv=$$('tr',el).map(tr=>$$('th,td',tr).map(c=>c.textContent.trim().replace(/\s+/g,' ')).join('\t')).join('\n');const ok=await copyText(tsv);toast(ok?'Таблица скопирована':'Не удалось скопировать')},
+  toggleNoBrand(t){ST.settings.noBrand=t.checked;save();render()},
+  fdNav(t){const u=UI.stats;u.fdMonth=addMonth(u.fdMonth||today().slice(0,7),+t.dataset.n);render()},
+  addFd(){ST.fd.push({id:uid('f'),m:UI.stats.fdMonth||today().slice(0,7),geo:'',source:'',fd:0,fails:0});save();render()},
+  delFd(t){ST.fd=ST.fd.filter(x=>x.id!==t.dataset.id);save();render()},
+  delList(t){const key=t.dataset.key,v=t.dataset.v,f=key==='geos'?'geo':key==='sources'?'source':'buyer';if(ST.partners.some(p=>p[f]===v)){alert('Нельзя удалить: есть партнёры с этим значением. Сначала переместите их.');return}ST.settings[key]=ST.settings[key].filter(x=>x!==v);save();render()},
+  export(){const b=new Blob([JSON.stringify(ST)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`ads-backup-${today()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)},
+  logout(){LS.del('mbyar_tok');showLogin()},
+  syncNow(){syncPull(true)},
+  cloudOff(){if(!confirm('Отключить синхронизацию на этом устройстве? Данные останутся здесь и в облаке.'))return;LS.del('mbyar_cloud');CL.cfg=null;setSync('off');render()},
+};
+ACT.renList=t=>{const key=t.dataset.key,v=t.dataset.v,f=key==='geos'?'geo':key==='sources'?'source':'buyer';const nv=(prompt('Новое название',v)||'').trim();if(!nv||nv===v)return;
+  if(ST.settings[key].includes(nv)){alert('Такое значение уже есть');return}
+  ST.settings[key]=ST.settings[key].map(x=>x===v?nv:x);ST.partners.forEach(p=>{if(p[f]===v)p[f]=nv});ST.fd.forEach(r=>{if(f!=='buyer'&&r[f]===v)r[f]=nv});save();render()};
+function packForm(pid,k){
+  const p=PM.get(pid),isNew=!k;const pr=curPrice(p);
+  k=k||{count:'',budget:'',start:today(),end:'',done0:0,spent0:0,note:''};
+  const cur=openPack(pid);
+  modalForm(isNew?'Новый пакет интеграций':'Изменить пакет',
+   `<div class="muted" style="margin-bottom:10px">${esc(p.name)}${isNew&&cur?'<br><span class="warn">Текущий активный пакет будет закрыт, а новый начнётся с указанной даты.</span>':''}</div>
+    <div class="grid g2"><div>${fld('Сколько интеграций','count',k.count,{type:'number',req:1,inputmode:'numeric'})}</div><div>${fld('На какую сумму, $','budget',k.budget||'',{type:'number',step:'0.01',inputmode:'decimal',ph:pr?'напр. '+pr+' × кол-во':''})}</div></div>
+    <div class="grid g2"><div>${fld('Начало (с этой даты считаем)','start',k.start,{type:'date',req:1})}</div><div>${fld('Окончание контракта (если есть)','end',k.end,{type:'date'})}</div></div>
+    <details ${(+k.done0||+k.spent0)?'open':''}><summary class="muted" style="cursor:pointer;margin-bottom:8px">Уже выполнено до начала учёта в системе</summary><div class="grid g2"><div>${fld('Интеграций уже выпущено','done0',k.done0,{type:'number'})}</div><div>${fld('Потрачено уже, $','spent0',k.spent0,{type:'number',step:'0.01'})}</div></div></details>
+    ${fld('Заметка','note',k.note,{tag:'textarea',rows:2})}`,'Сохранить',f=>{
+     const data={count:+f.count,budget:f.budget?+f.budget:null,start:f.start,end:f.end||'',done0:+f.done0||0,spent0:+f.spent0||0,note:f.note};
+     if(isNew){if(cur){cur.closed=true;if(!cur.end)cur.end=addDays(data.start,-1)}const nk={id:uid('k'),p:pid,closed:false,...data};ST.packs.push(nk);
+       for(const e of ST.entries)if(e.p===pid&&!e.k&&e.d>=nk.start&&(!nk.end||e.d<=nk.end))e.k=nk.id}
+     else{Object.assign(k,data);for(const e of ST.entries)if(e.p===pid&&!e.k&&e.d>=k.start&&(!k.end||e.d<=k.end))e.k=k.id}
+     save();render()})}
+
+document.addEventListener('click',ev=>{const t=ev.target.closest('[data-act]');if(!t)return;const f=ACT[t.dataset.act];if(f)f(t,ev)});
+document.addEventListener('input',ev=>{const t=ev.target;
+  if(t.id==='p-q'){UI.partners.q=t.value;UI.partners.limit=80;$('#p-list').innerHTML=partnerRows()}
+  else if(t.id==='ap-a'){UI.add.amount=t.value;UI.add.amountDirty=true;addHint()}
+  else if(t.closest('#add-form')&&t.name==='u')UI.add.url=t.value;else if(t.closest('#add-form')&&t.name==='n')UI.add.note=t.value});
+document.addEventListener('change',ev=>{const t=ev.target;const d=t.dataset;
+  if(t.id==='dash-m'){UI.dash.m=t.value;render()}
+  else if(d.pf!==undefined){UI.partners[d.pf]=t.type==='checkbox'?t.checked:t.value;UI.partners.limit=80;$('#p-list').innerHTML=partnerRows()}
+  else if(d.cf!==undefined){UI.cal[d.cf]=t.value;render()}
+  else if(d.wf!==undefined){UI.week[d.wf]=t.type==='checkbox'?t.checked:t.value;render()}
+  else if(d.sf!==undefined){UI.stats[d.sf]=t.value;render()}
+  else if(t.id==='wk-key'){const v=t.value.trim().toUpperCase();if(/^\d{4}-W\d{1,2}$/.test(v)){const [y,w]=v.split('-W');UI.week.key=`${y}-W${pad(+w)}`}render()}
+  else if(d.fdf){const r=ST.fd.find(x=>x.id===d.fdf);if(r){const f=d.f;r[f]=(f==='fd'||f==='fails')?(+t.value||0):t.value.trim().toUpperCase();ensureList('geos',f==='geo'?r.geo:'');ensureList('sources',f==='source'?r.source:'');save();render()}}
+  else if(t.closest('#add-form')){const u=UI.add;
+    if(t.name==='d'){u.date=t.value;setAmountFromPrice();addHint();addPackInfo()}
+    else if(t.name==='t'){u.type=t.value;if(u.type!=='i'){u.amountDirty=false;u.amount='';$('#ap-a').value=''}else setAmountFromPrice();addHint();addPackInfo()}
+    else if(t.id==='ap-clear')u.clear=t.checked}
+  else if(t.id==='imp-file'){importFile(t.files[0])}});
+document.addEventListener('submit',ev=>{const f=ev.target;
+  if(f.id==='add-form'){ev.preventDefault();const u=UI.add;const fd=Object.fromEntries(new FormData(f));let a=+fd.a;if(!isFinite(a)){return}
+    if(u.type==='r')a=-Math.abs(a);const e=addEntry({p:u.pid,d:fd.d||u.date,a:r2(a),t:u.type,u:normLink(fd.u),n:fd.n});u.session.push(e.id);
+    const p=PM.get(e.p);toast(`Сохранено: ${p.name} · ${money(e.a,2)}`);u.url='';u.note='';u.amountDirty=false;u.amount='';u.date=e.d;if(u.clear||u.type!=='i'){u.pid=''}u.type='i';setAmountFromPrice();render();return}
+  const dn=f.dataset.form;if(!dn)return;ev.preventDefault();const fd=Object.fromEntries(new FormData(f));
+  if(dn==='addRef'){const p=PM.get(f.dataset.id);const kind=f.dataset.kind;if(kind==='links')p.links.push({id:uid('l'),label:fd.label.trim(),url:fd.value.trim()});else p.promos.push({id:uid('c'),label:fd.label.trim(),code:fd.value.trim()});save();render()}
+  else if(dn==='addList'){const v=fd.v.trim();if(!v)return;const key=f.dataset.key;ensureList(key,key==='buyers'?v:v.toUpperCase());save();render()}
+  else if(dn==='remind'){ST.settings.remindLeft=+fd.remindLeft||0;ST.settings.remindDays=+fd.remindDays||0;save();render();toast('Сохранено')}
+  else if(dn==='code'){if(hashCode(fd.old,ST.meta.salt)!==ST.meta.codeHash){alert('Текущий код неверный');return}if(fd.n1!==fd.n2){alert('Новые коды не совпадают');return}
+    ST.meta.salt=uid('s');ST.meta.codeHash=hashCode(fd.n1,ST.meta.salt);LS.set('mbyar_tok',ST.meta.codeHash);save();f.reset();toast('Код изменён')}
+  else if(dn==='cloud'){const url=fd.url.trim(),key=fd.key.trim();if(!/^https?:\/\//.test(url)||!key){alert('Укажите Project URL и ключ');return}
+    CL.cfg={url,key,table:'app_state',id:'main'};LS.set('mbyar_cloud',JSON.stringify(CL.cfg));LS.set('mbyar_synced','0');syncPull(true).then(()=>render())}});
+function importFile(file){if(!file)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.partners)||!Array.isArray(d.entries))throw new Error('не похоже на файл данных');
+  if(!confirm(`Заменить все текущие данные данными из файла?\nПартнёров: ${d.partners.length}, записей: ${d.entries.length}`))return;
+  const meta=ST.meta;const nd=Object.assign(DEFAULTS(),d);nd.meta=meta;nd.settings=Object.assign(DEFAULTS().settings,d.settings||{});ST=nd;save();render();toast('Данные загружены')}catch(e){alert('Ошибка импорта: '+e.message)}};r.readAsText(file)}
+
+/* ================= cloud sync ================= */
+const CL={cfg:null,status:'off',timer:null};
+function setSync(st){CL.status=st;const txt={off:'Только это устройство',ok:'Синхронизировано',busy:'Синхронизация…',err:'Ошибка синхронизации',dirty:'Есть несохранённые в облаке'}[st]||'';
+  for(const id of['sync','sync2']){const el=$('#'+id);if(!el)continue;el.className='sync '+(st==='dirty'?'busy':st);el.lastElementChild.textContent=CL.cfg?txt:'Только это устройство';el.title=CL.err||''}}
+async function cloudFetch(path,opts={}){const c=CL.cfg;const r=await fetch(c.url.replace(/\/$/,'')+'/rest/v1/'+path,{...opts,headers:{apikey:c.key,Authorization:'Bearer '+c.key,'Content-Type':'application/json',...(opts.headers||{})}});
+  if(!r.ok)throw new Error(r.status+' '+(await r.text()).slice(0,160));const t=await r.text();return t?JSON.parse(t):null}
+const cloudRev=async()=>{const a=await cloudFetch(`app_state?id=eq.main&select=rev:data->meta->>rev`);return a&&a[0]?+a[0].rev||0:0};
+async function syncPull(manual){
+  if(!CL.cfg){return}
+  try{setSync('busy');const R=await cloudRev(),L=ST?ST.meta.rev:0,Sy=+LS.get('mbyar_synced')||0;
+    if(R===L){LS.set('mbyar_synced',String(L))}
+    else if(R>L){if(!ST||L<=Sy||!L){await adoptRemote()}else await conflict(R)}
+    else{if(R<=Sy||R===0)await cloudPush();else await conflict(R)}
+    setSync('ok');if(manual)toast('Синхронизировано')}
+  catch(e){CL.err=String(e.message||e);setSync('err');if(manual)alert('Ошибка синхронизации: '+CL.err)}}
+async function adoptRemote(){const a=await cloudFetch('app_state?id=eq.main&select=data');const d=a&&a[0]&&a[0].data;if(!d)return;
+  const hadTok=ST&&LS.get('mbyar_tok')===ST.meta.codeHash;ST=d;persist();reindex();LS.set('mbyar_synced',String(d.meta.rev));
+  if(!ST.meta.codeHash){return}
+  if(hadTok&&LS.get('mbyar_tok')!==ST.meta.codeHash){showLogin();return}
+  if($('#root').querySelector('#app'))render()}
+async function cloudPush(){const body={id:'main',data:ST,updated_at:new Date().toISOString()};
+  await cloudFetch('app_state',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(body)});LS.set('mbyar_synced',String(ST.meta.rev))}
+function conflict(R){return new Promise(res=>{const m=modal(`<h2>Данные изменены на двух устройствах</h2><p class="muted">В облаке есть более новые изменения, но и на этом устройстве есть несинхронизированные. Что оставить?</p><div class="row" style="justify-content:flex-end"><button class="btn" id="c-cloud">Взять из облака</button><button class="btn pri" id="c-here">Оставить это устройство</button></div>`);
+  $('#c-cloud',m).onclick=async()=>{closeModal();try{await adoptRemote()}catch(e){}res()};
+  $('#c-here',m).onclick=async()=>{closeModal();try{await cloudPush()}catch(e){}res()}})}
+function schedulePush(){if(!CL.cfg)return;setSync('dirty');clearTimeout(CL.timer);CL.timer=setTimeout(async()=>{
+  try{setSync('busy');const R=await cloudRev(),Sy=+LS.get('mbyar_synced')||0;if(R>Sy&&R!==ST.meta.rev){await conflict(R)}else await cloudPush();setSync('ok')}catch(e){CL.err=String(e.message||e);setSync('err')}},1200)}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&ST&&CL.cfg&&LS.get('mbyar_tok')===ST.meta.codeHash)syncPull()});
+
+/* ================= auth / boot ================= */
+function authShell(inner){$('#root').innerHTML=`<div class="auth"><div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;font-weight:700;font-size:18px"><i style="width:30px;height:30px;border-radius:9px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-style:normal;font-weight:800">A</i>Учёт рекламы</div>${inner}</div>`}
+function showLogin(){
+  authShell(`<div class="card"><h2>Вход</h2><form id="login" autocomplete="off"><label class="f">Персональный код<input type="password" name="c" autofocus required autocomplete="current-password" inputmode="text"></label><button class="btn pri" style="width:100%;min-height:42px">Войти</button><div id="login-err" class="bad" style="margin-top:10px;min-height:18px"></div></form></div>`);
+  $('#login').addEventListener('submit',async ev=>{ev.preventDefault();const c=new FormData(ev.target).get('c');const b=ev.target.querySelector('button');b.disabled=true;await new Promise(r=>setTimeout(r,30));
+    if(hashCode(c,ST.meta.salt)===ST.meta.codeHash){LS.set('mbyar_tok',ST.meta.codeHash);start()}else{await new Promise(r=>setTimeout(r,700));$('#login-err').textContent='Неверный код';ev.target.reset();b.disabled=false}})}
+function showSetup(){
+  authShell(`<div class="card"><h2>Первый запуск</h2><div class="muted" style="margin-bottom:14px">Придумайте персональный код — только с ним можно будет войти. При желании сразу загрузите файл данных (seed.json).</div>
+   <form id="setup" autocomplete="off"><label class="f">Код (минимум 4 символа)<input type="password" name="c1" required minlength="4" autocomplete="new-password"></label><label class="f">Повторите код<input type="password" name="c2" required autocomplete="new-password"></label>
+   <label class="f">Файл данных (необязательно)<input type="file" name="file" accept=".json,application/json"></label><button class="btn pri" style="width:100%;min-height:42px">Создать</button><div id="su-err" class="bad" style="margin-top:10px"></div></form>
+   <hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><h3>Уже настроено на другом устройстве?</h3><form id="cloudsu"><label class="f">Project URL<input name="url" placeholder="https://xxxx.supabase.co"></label><label class="f">anon key<input name="key"></label><button class="btn" style="width:100%">Подключиться к облаку</button><div id="cs-err" class="bad" style="margin-top:10px"></div></form></div>`);
+  $('#setup').addEventListener('submit',ev=>{ev.preventDefault();const f=new FormData(ev.target),err=$('#su-err');if(f.get('c1')!==f.get('c2')){err.textContent='Коды не совпадают';return}
+    const file=f.get('file'),go=d=>{const st=Object.assign(DEFAULTS(),d||{});st.settings=Object.assign(DEFAULTS().settings,(d||{}).settings||{});st.meta={rev:Date.now(),salt:uid('s'),codeHash:''};st.meta.codeHash=hashCode(f.get('c1'),st.meta.salt);ST=st;LS.set('mbyar_tok',st.meta.codeHash);persist();start()};
+    if(file&&file.size){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.partners))throw 0;go(d)}catch(e){err.textContent='Файл не похож на файл данных'}};r.readAsText(file)}else go(null)});
+  $('#cloudsu').addEventListener('submit',async ev=>{ev.preventDefault();const f=new FormData(ev.target);const url=f.get('url').trim(),key=f.get('key').trim();const err=$('#cs-err');if(!url||!key){err.textContent='Укажите URL и ключ';return}
+    CL.cfg={url,key,table:'app_state',id:'main'};try{const a=await cloudFetch('app_state?id=eq.main&select=data');if(!a||!a[0]){err.textContent='В облаке пока пусто. Сначала создайте установку на основном устройстве и включите синхронизацию.';CL.cfg=null;return}
+      LS.set('mbyar_cloud',JSON.stringify(CL.cfg));ST=a[0].data;persist();LS.set('mbyar_synced',String(ST.meta.rev));showLogin()}catch(e){err.textContent='Не удалось подключиться: '+e.message;CL.cfg=null}})}
+function start(){reindex();render();setSync(CL.cfg?'busy':'off');if(CL.cfg)syncPull()}
+async function boot(){
+  try{const raw=LS.get('mbyar_state');if(raw)ST=JSON.parse(raw)}catch(e){ST=null}
+  CL.cfg=(()=>{try{return JSON.parse(LS.get('mbyar_cloud')||'null')}catch(e){return null}})();
+  if(!ST){showSetup();return}
+  ST=Object.assign(DEFAULTS(),ST);ST.settings=Object.assign(DEFAULTS().settings,ST.settings);
+  if(LS.get('mbyar_tok')===ST.meta.codeHash&&ST.meta.codeHash)start();else{showLogin();if(CL.cfg)syncPull()}}
+boot();
+</script>
+</body>
+</html>
