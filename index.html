@@ -204,7 +204,7 @@ a.prow:hover{background:rgba(255,255,255,.03)}
   #toast{bottom:90px}
   .li{flex-wrap:wrap}.li .lb{max-width:none;min-width:0;flex:1 0 100%}
 }
-body.ro a[href="#/add"],body.ro form[data-form],body.ro [data-fdf],body.ro [data-act=newPartner],body.ro [data-act=editPartner],body.ro [data-act=bulk],body.ro [data-act=editRef],body.ro [data-act=newPack],body.ro [data-act=editPack],body.ro [data-act=closePack],body.ro [data-act=reopenPack],body.ro [data-act=addPrice],body.ro [data-act=delPrice],body.ro [data-act=editEntry],body.ro [data-act=addFd],body.ro [data-act=delFd],body.ro [data-act=toggleNoBrand],body.ro label.chk:has([data-act=toggleNoBrand]){display:none!important}
+body.ro a[href="#/add"],body.ro form[data-form],body.ro [data-fdf],body.ro [data-act=newPartner],body.ro [data-act=editPartner],body.ro [data-act=bulk],body.ro [data-act=editRef],body.ro [data-act=newPack],body.ro [data-act=editPack],body.ro [data-act=closePack],body.ro [data-act=reopenPack],body.ro [data-act=addPrice],body.ro [data-act=delPrice],body.ro [data-act=editEntry],body.ro [data-act=planForm],body.ro [data-act=clearPlans],body.ro [data-act=editPlan],body.ro [data-act=delPlan],body.ro [data-act=donePlan],body.ro [data-act=addFd],body.ro [data-act=delFd],body.ro [data-act=toggleNoBrand],body.ro label.chk:has([data-act=toggleNoBrand]){display:none!important}
 </style>
 </head>
 <body>
@@ -277,11 +277,12 @@ function sha256(str){
 const hashCode=(code,salt)=>{let h=salt+'|'+code;for(let i=0;i<3000;i++)h=sha256(h+salt);return h};
 
 /* ================= state ================= */
-const DEFAULTS=()=>({v:1,meta:{rev:0,salt:'',codeHash:''},settings:{geos:['AZ','AR','CH','TR'],sources:['TG','IG','STR','YT','FB','BRAND','SITES','WA','X'],buyers:[],remindLeft:2,remindDays:7,noBrand:true},partners:[],entries:[],packs:[],fd:[]});
+const DEFAULTS=()=>({v:1,meta:{rev:0,salt:'',codeHash:''},settings:{geos:['AZ','AR','CH','TR'],sources:['TG','IG','STR','YT','FB','BRAND','SITES','WA','X'],buyers:[],remindLeft:2,remindDays:7,noBrand:true},partners:[],entries:[],packs:[],fd:[],plans:[]});
 let ROLE='admin';
-let ST=null,PM=new Map(),EBP=new Map(),PST=new Map();
+let ST=null,PM=new Map(),EBP=new Map(),PST=new Map(),PP=new Map();
 function reindex(){
-  PM=new Map(ST.partners.map(p=>[p.id,p]));EBP=new Map();PST=new Map();
+  if(!ST.plans)ST.plans=[];PM=new Map(ST.partners.map(p=>[p.id,p]));EBP=new Map();PST=new Map();PP=new Map();
+  for(const x of ST.plans){if(x.done)continue;let a=PP.get(x.p);if(!a)PP.set(x.p,a=[]);a.push(x)}
   for(const e of ST.entries){let a=EBP.get(e.p);if(!a)EBP.set(e.p,a=[]);a.push(e);
     let s=PST.get(e.p);if(!s)PST.set(e.p,s={last:'',total:0,cnt:0});s.total+=e.a;if(e.t==='i'){s.cnt++;if(e.d>s.last)s.last=e.d}}
   $('#dl-geo').innerHTML=ST.settings.geos.map(x=>`<option value="${esc(x)}">`).join('');
@@ -311,6 +312,21 @@ function reminders(){
       if(days<0)out.push({lvl:2,p,k,t:`Срок контракта истёк ${-days} дн. назад (${dmy(k.end)})`});
       else if(days<=ST.settings.remindDays)out.push({lvl:1,p,k,t:`Контракт заканчивается через ${days} дн. (${dmy(k.end)}), осталось интеграций: ${s.left}`})}}
   return out.sort((a,b)=>b.lvl-a.lvl)}
+const isActive=p=>{const lim=addDays(today(),-14);if((PP.get(p.id)||[]).length)return true;const s=PST.get(p.id);if(s&&s.last>=lim)return true;return !!(p.created&&p.created>=lim)};
+function distribute(S,n){const base=Math.floor(S/n);const a=Array(n).fill(base);a[n-1]=r2(S-base*(n-1));return a}
+function spreadDates(from,to,n){if(n===1)return [from];const days=Math.round((D(to)-D(from))/864e5);return Array.from({length:n},(_,i)=>addDays(from,Math.round(i*days/(n-1))))}
+function planItems(n,S,from,to){const am=distribute(S,n),dt=spreadDates(from,to,n);return dt.map((d,i)=>({d,a:am[i]}))}
+function planOn(pid,date){const a=[...(PP.get(pid)||[])].sort((x,y)=>x.d.localeCompare(y.d));return a.find(x=>x.d===date)||a.find(x=>x.d<date)||null}
+function planPreview(items){const g={};items.forEach(i=>g[i.a]=(g[i.a]||0)+1);return `<b>${items.length} интеграций, всего ${money(sum(items,i=>i.a))}</b>: ${Object.entries(g).map(([a,n])=>`${n} × ${money(+a)}`).join(' + ')}<div class="mono" style="font-size:12px;margin-top:4px;line-height:1.7">${items.map(i=>dmy(i.d).slice(0,5)+' — '+money(i.a)).join(' · ')}</div>`}
+const planBtns=x=>`<button class="btn sm pri" data-act="donePlan" data-id="${x.id}">${ic('check','s')} Выполнено</button><button class="icon-btn" data-act="editPlan" data-id="${x.id}" title="Изменить">${ic('edit','s')}</button>`;
+function planDay(d){const a=ST.plans.filter(x=>!x.done&&x.d===d&&PM.get(x.p));if(!a.length)return '';
+  return `<h3 style="margin-top:16px">Запланировано (${a.length} · ${money(sum(a,x=>x.a))})</h3>`+a.map(x=>{const p=PM.get(x.p);return `<div class="li"><span class="lb" style="max-width:none;flex:1"><a href="#/partner/${p.id}" style="color:inherit">${esc(p.name)}</a> <span class="muted" style="font-weight:400">${esc(p.geo)} ${esc(p.source)}</span></span><b class="num">${money(x.a,2)}</b>${planBtns(x)}</div>`}).join('')}
+function planTable(){const td=today(),tm=addDays(td,1);
+  const rows=ST.plans.filter(x=>!x.done&&x.d<=tm&&PM.get(x.p)).sort((a,b)=>a.d.localeCompare(b.d)||PM.get(a.p).name.localeCompare(PM.get(b.p).name));
+  const tS=sum(rows.filter(x=>x.d===td),x=>x.a),mS=sum(rows.filter(x=>x.d===tm),x=>x.a);
+  const lbl=d=>d<td?`<span class="tag bad">просрочено ${dmy(d).slice(0,5)}</span>`:d===td?'<span class="tag ok">сегодня</span>':'<span class="tag warn">завтра</span>';
+  return `<div class="sect" style="margin-top:0;margin-bottom:14px"><div class="row"><h2 style="margin:0">План: сегодня и завтра</h2><span class="muted">сегодня ${rows.filter(x=>x.d===td).length} · ${money(tS)} &nbsp;|&nbsp; завтра ${rows.filter(x=>x.d===tm).length} · ${money(mS)}</span></div>
+  ${rows.length?`<div class="tw" style="margin-top:10px"><table><thead><tr><th>День</th><th>Партнёр</th><th>Трекер</th><th class="r">Сумма</th><th>Пакет</th><th></th></tr></thead><tbody>${rows.map(x=>{const p=PM.get(x.p),k=openPack(p.id),ps=k?packStats(k):null;return `<tr><td>${lbl(x.d)}</td><td><a href="#/partner/${p.id}">${esc(p.name)}</a> <span class="muted">${esc(p.geo)} ${esc(p.source)}</span></td><td>${p.tracker?`<button class="chip" data-act="copy" data-text="${esc(p.tracker)}">${esc(p.tracker)}</button>`:'—'}</td><td class="r num">${money(x.a,2)}</td><td class="muted">${ps?`осталось ${ps.left} из ${k.count}`:'—'}</td><td class="r" style="white-space:nowrap">${planBtns(x)}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="card empty" style="margin-top:10px;padding:18px">На сегодня и завтра ничего не запланировано. Запланировать можно в карточке партнёра.</div>'}</div>`}
 function ents(f={}){return ST.entries.filter(e=>{if(f.from&&e.d<f.from)return false;if(f.to&&e.d>f.to)return false;const p=PM.get(e.p);if(!p)return false;
   if(f.geo&&p.geo!==f.geo)return false;if(f.source&&p.source!==f.source)return false;if(f.buyer&&p.buyer!==f.buyer)return false;if(f.noBrand&&p.source==='BRAND')return false;return true})}
 function fdSum(m,f={}){let fd=0,fails=0;for(const r of ST.fd){if(m&&r.m!==m)continue;if(f.geo&&r.geo!==f.geo)continue;if(f.source&&r.source!==f.source)continue;fd+=+r.fd||0;fails+=+r.fails||0}return {fd,fails}}
@@ -384,6 +400,7 @@ function pgDash(){
    <label class="chk"><input type="checkbox" data-act="toggleNoBrand" ${nb?'checked':''}> без BRAND</label>
    <a class="btn pri" href="#/add">${ic('plus','s')} Интеграция</a></div>
   ${rem.length?`<div class="sect" style="margin-top:0">${rem.map(r=>`<a class="rem ${r.lvl>1?'bad':''}" href="#/partner/${r.p.id}" style="color:inherit">${ic('bell')}<div><b>${esc(r.p.name)}</b> <span class="muted">${esc(r.p.geo)} ${esc(r.p.source)}</span><br>${esc(r.t)}</div></a>`).join('')}</div>`:''}
+  ${planTable()}
   <div class="grid g6" style="margin-bottom:14px">
    <div class="card kpi"><div class="l">Расход</div><div class="v">${money(spend)}</div><div class="d">${prevTxt||'&nbsp;'}</div></div>
    <div class="card kpi"><div class="l">Интеграций</div><div class="v">${nf0.format(cnt)}</div><div class="d">${cnt?'ср. '+money(spend/cnt):'&nbsp;'}</div></div>
@@ -402,9 +419,8 @@ function pgDash(){
 function filterPartners(){
   const u=UI.partners,q=u.q.trim().toLowerCase(),lim=addDays(today(),-60);
   let a=ST.partners.filter(p=>{
-    if(u.status&&(p.status||'active')!==u.status)return false;
+    if(u.status==='active'&&!isActive(p))return false;if(u.status==='archive'&&isActive(p))return false;
     if(u.geo&&p.geo!==u.geo)return false;if(u.source&&p.source!==u.source)return false;if(u.buyer&&p.buyer!==u.buyer)return false;
-    if(u.recent){const s=PST.get(p.id);if(!s||s.last<lim)return false}
     if(q){const hay=[p.name,p.tracker,p.link,p.manager,p.geo,p.source,p.buyer,...(p.links||[]).map(l=>l.label+' '+l.url),...(p.promos||[]).map(l=>l.label+' '+l.code)].join(' ').toLowerCase();if(!q.split(/\s+/).every(w=>hay.includes(w)))return false}
     return true});
   const st=p=>PST.get(p.id)||{last:'',total:0};
@@ -416,30 +432,35 @@ function partnerRows(){
   const a=filterPartners(),u=UI.partners,shown=a.slice(0,u.limit);
   return `<div class="muted" style="margin:0 2px 8px">Найдено: ${a.length}</div>`+(a.length?`<div class="plist"><div class="prow h"><span>Партнёр</span><span>Гео / источник</span><span class="c-x">Трекер</span><span class="c-x">Байер</span><span class="c-x">Пакет</span><span class="c-x" style="text-align:right">Последняя</span></div>${shown.map(p=>{
     const s=PST.get(p.id)||{last:'',cnt:0},k=openPack(p.id),ps=k?packStats(k):null,pr=curPrice(p);
-    return `<a class="prow" href="#/partner/${p.id}"><span class="pname">${esc(p.name||'(без названия)')}<small>${esc(p.manager||'')}${pr?` · ${money(pr)}`:''}${p.status==='archive'?' · архив':''}</small></span><span>${badge(p)}</span><span class="c-x mono">${esc(p.tracker||'—')}</span><span class="c-x muted">${esc(p.buyer)}</span><span class="c-x">${ps?`<span class="tag ${ps.left<=0?'bad':ps.left<=ST.settings.remindLeft?'warn':'ok'}">осталось ${ps.left} из ${k.count}</span>`:'<span class="dim">—</span>'}</span><span class="c-x muted num" style="text-align:right">${s.last?dmy(s.last):'—'}</span></a>`}).join('')}</div>${a.length>shown.length?`<div style="text-align:center;margin-top:12px"><button class="btn" data-act="moreP">Показать ещё ${Math.min(80,a.length-shown.length)}</button></div>`:''}`:'<div class="card empty">Никого не найдено</div>')}
+    return `<a class="prow" href="#/partner/${p.id}"><span class="pname">${esc(p.name||'(без названия)')}<small>${esc(p.manager||'')}${pr?` · ${money(pr)}`:''}${isActive(p)?'':' · архив'}</small></span><span>${badge(p)}</span><span class="c-x mono">${esc(p.tracker||'—')}</span><span class="c-x muted">${esc(p.buyer)}</span><span class="c-x">${ps?`<span class="tag ${ps.left<=0?'bad':ps.left<=ST.settings.remindLeft?'warn':'ok'}">осталось ${ps.left} из ${k.count}</span>`:'<span class="dim">—</span>'}</span><span class="c-x muted num" style="text-align:right">${s.last?dmy(s.last):'—'}</span></a>`}).join('')}</div>${a.length>shown.length?`<div style="text-align:center;margin-top:12px"><button class="btn" data-act="moreP">Показать ещё ${Math.min(80,a.length-shown.length)}</button></div>`:''}`:'<div class="card empty">Никого не найдено</div>')}
 function selOpts(list,val,all){return `<option value="">${all}</option>`+list.map(x=>`<option ${x===val?'selected':''}>${esc(x)}</option>`).join('')}
 function pgPartners(){const u=UI.partners;
   return `<div class="top"><h1>Партнёры</h1><div class="sp"></div><button class="btn pri" data-act="newPartner">${ic('plus','s')} Партнёр</button></div>
   <div class="filters"><input class="search" id="p-q" type="search" placeholder="Поиск: название, трекер, ссылка, промокод, менеджер…" value="${esc(u.q)}" data-autofocus>
    <select data-pf="geo">${selOpts(ST.settings.geos,u.geo,'Все гео')}</select><select data-pf="source">${selOpts(ST.settings.sources,u.source,'Все источники')}</select><select data-pf="buyer">${selOpts(ST.settings.buyers,u.buyer,'Все байеры')}</select>
-   <select data-pf="status"><option value="active" ${u.status==='active'?'selected':''}>Активные</option><option value="archive" ${u.status==='archive'?'selected':''}>Архив</option><option value="" ${!u.status?'selected':''}>Все</option></select>
-   <select data-pf="sort"><option value="recent" ${u.sort==='recent'?'selected':''}>Сначала недавние</option><option value="name" ${u.sort==='name'?'selected':''}>По названию</option><option value="spend" ${u.sort==='spend'?'selected':''}>По расходу</option></select>
-   <label class="chk"><input type="checkbox" data-pf="recent" ${u.recent?'checked':''}> активны 60 дн.</label></div>
+   <select data-pf="status"><option value="active" ${u.status==='active'?'selected':''}>Активные</option><option value="archive" ${u.status==='archive'?'selected':''}>Архивные</option><option value="" ${!u.status?'selected':''}>Все</option></select>
+   <select data-pf="sort"><option value="recent" ${u.sort==='recent'?'selected':''}>Сначала недавние</option><option value="name" ${u.sort==='name'?'selected':''}>По названию</option><option value="spend" ${u.sort==='spend'?'selected':''}>По расходу</option></select></div>
   <div id="p-list">${partnerRows()}</div>`}
 function partnerForm(p){
-  const isNew=!p;p=p||{geo:UI.partners.geo||'',source:UI.partners.source||'',buyer:UI.partners.buyer||ST.settings.buyers[0]||'',name:'',tracker:'',link:'',manager:'',status:'active',notes:'',priceNote:''};
+  const isNew=!p;p=p||{geo:UI.partners.geo||'',source:UI.partners.source||'',buyer:UI.partners.buyer||ST.settings.buyers[0]||'',name:'',tracker:'',link:'',manager:'',notes:'',priceNote:''};
   modalForm(isNew?'Новый партнёр':'Редактировать партнёра',
    `<div class="grid g2"><div>${fld('Гео','geo',p.geo,{list:'dl-geo',req:1})}</div><div>${fld('Источник','source',p.source,{list:'dl-src',req:1})}</div></div>
     ${fld('Название (Sub в партнёрке)','name',p.name,{req:1})}${fld('Трекер','tracker',p.tracker,{inputmode:'numeric'})}${fld('Ссылка на источник','link',p.link,{ph:'https://t.me/…'})}
     <div class="grid g2"><div>${fld('Байер','buyer',p.buyer,{list:'dl-buyer'})}</div><div>${fld('Менеджер (контакт)','manager',p.manager,{ph:'@username'})}</div></div>
-    ${fld('Статус','status',p.status||'active',{tag:'select',opts:[['active','Активный'],['archive','Архив']]})}
-    ${fld('Условия цены (текст, если не число)','priceNote',p.priceNote,{ph:'напр. CPA 40$ / 300 KPI'})}${isNew?fld('Цена за 1 интеграцию, $ (необязательно)','price','',{type:'number',step:'0.01',inputmode:'decimal'}):''}
+    ${fld('Условия цены (текст, если не число)','priceNote',p.priceNote,{ph:'напр. CPA 40$ / 300 KPI'})}${isNew?`<div class="card" style="background:var(--panel2);margin:4px 0 12px;padding:12px"><h3>Контракт</h3><div class="grid g2"><div>${fld('Количество интеграций','count','',{type:'number',inputmode:'numeric'})}</div><div>${fld('Общая сумма контракта, $','budget','',{type:'number',step:'0.01',inputmode:'decimal'})}</div></div><div class="grid g2"><div>${fld('Начало контракта','start',today(),{type:'date'})}</div><div>${fld('Окончание (если есть)','end','',{type:'date'})}</div></div><div class="muted" style="margin-bottom:8px">Остаток интеграций и суммы считается от этого контракта. Чтобы сразу распределить интеграции по датам, укажите срок:</div><div class="grid g2"><div>${fld('Запланировать с','pfrom',today(),{type:'date'})}</div><div>${fld('Запланировать по','pto','',{type:'date'})}</div></div><div id="np-prev" class="muted"></div></div>${fld('Цена за 1 интеграцию, $ (если пусто — возьмётся из контракта)','price','',{type:'number',step:'0.01',inputmode:'decimal'})}`:''}
     ${fld('Заметки','notes',p.notes,{tag:'textarea'})}`,'Сохранить',f=>{
      const np=isNew?{id:uid('p'),links:[],promos:[],prices:[]}:p;
-     Object.assign(np,{geo:f.geo.trim().toUpperCase(),source:f.source.trim().toUpperCase(),name:f.name.trim(),tracker:f.tracker.trim().replace(/\.0$/,''),link:normLink(f.link),buyer:f.buyer.trim(),manager:f.manager.trim(),status:f.status,priceNote:f.priceNote.trim(),notes:f.notes});
-     if(isNew&&f.price)np.prices=[{from:today(),price:+f.price}];
+     Object.assign(np,{geo:f.geo.trim().toUpperCase(),source:f.source.trim().toUpperCase(),name:f.name.trim(),tracker:f.tracker.trim().replace(/\.0$/,''),link:normLink(f.link),buyer:f.buyer.trim(),manager:f.manager.trim(),priceNote:f.priceNote.trim(),notes:f.notes});
+     const cnt=Math.floor(+f.count||0),bud=f.budget?+f.budget:null;
+     if(isNew){np.created=today();
+       if(cnt>0&&f.pto&&f.pfrom&&f.pto<f.pfrom){alert('Дата окончания планирования раньше начала');return false}
+       if(f.price)np.prices=[{from:today(),price:+f.price}];else if(cnt>0&&bud)np.prices=[{from:today(),price:Math.floor(bud/cnt)}]}
      ensureList('geos',np.geo);ensureList('sources',np.source);ensureList('buyers',np.buyer);
-     if(isNew)ST.partners.push(np);save();if(isNew)location.hash='#/partner/'+np.id;else render()},false)}
+     if(isNew){ST.partners.push(np);
+       if(cnt>0){ST.packs.push({id:uid('k'),p:np.id,count:cnt,done0:0,budget:bud,spent0:0,start:f.start||today(),end:f.end||'',closed:false,note:''});
+         if(bud!==null&&f.pto&&f.pfrom)for(const it of planItems(cnt,bud,f.pfrom,f.pto))ST.plans.push({id:uid('n'),p:np.id,d:it.d,a:it.a,done:false})}}
+     save();if(isNew)location.hash='#/partner/'+np.id;else render()},false);
+  if(isNew){const m=$('.modal');m.addEventListener('input',()=>{const g=n=>m.querySelector(`[name=${n}]`).value;const c=Math.floor(+g('count')||0),b=+g('budget'),a=g('pfrom'),z=g('pto');const el=m.querySelector('#np-prev');if(c>0&&b>0&&a&&z&&z>=a)el.innerHTML=planPreview(planItems(c,b,a,z));else if(c>0&&b>0)el.innerHTML=`По ${money(Math.floor(b/c))} × ${c-1} и последняя ${money(distribute(b,c)[c-1])}`;else el.innerHTML=''})}}
 function normLink(l){l=(l||'').trim();if(!l||l.startsWith('@')||/^https?:\/\//i.test(l))return l;return 'https://'+l}
 const cpBtn=(t,label,cls='icon-btn')=>`<button class="${cls}" data-act="copy" data-text="${esc(t)}" title="Скопировать">${ic('copy','s')}${label||''}</button>`;
 const openBtn=u=>/^https?:\/\//i.test(u)?`<a class="icon-btn" href="${esc(u)}" target="_blank" rel="noopener noreferrer" title="Открыть">${ic('ext','s')}</a>`:'';
@@ -451,7 +472,8 @@ function pgPartner(id){
   const closed=ST.packs.filter(x=>x.p===id&&x.closed).sort((a,b)=>b.start.localeCompare(a.start));
   const lk=p.links||[],pm=p.promos||[];
   const prices=[...(p.prices||[])].sort((a,b)=>b.from.localeCompare(a.from));
-  return `<div class="top"><a class="icon-btn" href="#/partners" title="Назад">${ic('left')}</a><div><h1>${esc(p.name)}</h1><div class="row" style="margin-top:6px">${badge(p)}<span class="chip">байер: ${esc(p.buyer||'—')}</span>${p.status==='archive'?'<span class="tag">архив</span>':''}</div></div><div class="sp"></div>
+  const plans=[...(PP.get(id)||[])].sort((a,b)=>a.d.localeCompare(b.d));
+  return `<div class="top"><a class="icon-btn" href="#/partners" title="Назад">${ic('left')}</a><div><h1>${esc(p.name)}</h1><div class="row" style="margin-top:6px">${badge(p)}<span class="chip">байер: ${esc(p.buyer||'—')}</span>${isActive(p)?'<span class="tag ok">активный</span>':'<span class="tag">архивный</span>'}</div></div><div class="sp"></div>
     <button class="btn" data-act="editPartner" data-id="${id}">${ic('edit','s')} Изменить</button><a class="btn pri" href="#/add" data-act="addFor" data-id="${id}">${ic('plus','s')} Интеграция</a></div>
   <div class="grid g3">
    <div class="card kpi"><div class="l">Трекер</div><div class="row" style="margin-top:6px">${p.tracker?`<button class="chip" style="font-size:18px;padding:5px 14px" data-act="copy" data-text="${esc(p.tracker)}">${esc(p.tracker)} ${ic('copy','s')}</button>`:'<span class="muted">не указан</span>'}</div></div>
@@ -480,6 +502,9 @@ function pgPartner(id){
     ${prices.length?prices.map((x,i)=>`<div class="li"><span class="lb" style="font-family:var(--sans)">с ${dmy(x.from)}</span><span class="val num" style="font-family:var(--sans);color:var(--text)">${money(x.price,2)} ${i===0?'<span class="tag ok">актуальная</span>':''}</span><button class="icon-btn" data-act="delPrice" data-id="${id}" data-i="${(p.prices||[]).indexOf(x)}">${ic('trash','s')}</button></div>`).join(''):'<div class="muted">Цена не задана</div>'}
     ${p.notes?`<h3 style="margin-top:16px">Заметки</h3><div style="white-space:pre-wrap">${esc(p.notes)}</div>`:''}</div></div>
 
+  <div class="card sect"><div class="row"><h2 style="margin:0">Запланированные интеграции <span class="muted">(${plans.length}${plans.length?' · '+money(sum(plans,x=>x.a)):''})</span></h2><div class="sp"></div>${plans.length?`<button class="btn sm danger" data-act="clearPlans" data-id="${id}">Очистить</button>`:''}<button class="btn sm pri" data-act="planForm" data-id="${id}">${ic('plus','s')} Запланировать</button></div>
+   ${plans.length?`<div style="margin-top:8px">${plans.map(x=>`<div class="li"><span class="lb" style="font-family:var(--sans);min-width:130px;max-width:none">${dmy(x.d)} <span class="muted" style="font-weight:400">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][dowMon(x.d)]}</span> ${x.d<today()?'<span class="tag bad">просрочено</span>':x.d===today()?'<span class="tag ok">сегодня</span>':''}</span><b class="num" style="flex:1">${money(x.a,2)}</b>${planBtns(x)}</div>`).join('')}</div>`:'<div class="muted" style="margin-top:8px">Ничего не запланировано. Укажите срок — система распределит сумму контракта по датам без копеек (остаток уйдёт в последнюю интеграцию).</div>'}</div>
+
   <div class="sect"><div class="row"><h2 style="margin:0">Интеграции <span class="muted">(${es.length})</span></h2><div class="sp"></div></div>
    ${es.length?`<div class="tw" style="margin-top:10px"><table><thead><tr><th>Дата</th><th>Неделя</th><th>Тип</th><th class="r">Сумма</th><th>Ссылка / заметка</th><th></th></tr></thead><tbody>${shown.map(e=>`<tr><td class="num">${dmy(e.d)}</td><td class="muted">${weekKey(e.d)}</td><td>${e.t==='i'?'':`<span class="tag ${e.t==='r'?'bad':'warn'}">${entryTypeLabel(e)}</span>`}${e.k&&e.t==='i'?'<span class="tag ok">пакет</span>':''}</td><td class="r num ${e.a<0?'bad':''}">${money(e.a,2)}</td><td class="wrap" style="max-width:360px">${e.u?`<span class="mono" style="font-size:12px">${esc(e.u.replace(/^https?:\/\//,'').slice(0,44))}${e.u.length>52?'…':''}</span> ${cpBtn(e.u)}${openBtn(e.u)}`:''} ${e.n?`<span class="muted">${esc(e.n.replace(e.u,'').trim().slice(0,90))}</span>`:''}</td><td class="r"><button class="icon-btn" data-act="editEntry" data-id="${e.id}">${ic('edit','s')}</button></td></tr>`).join('')}</tbody></table></div>${es.length>25&&!UI.pd.all?`<div style="text-align:center;margin-top:10px"><button class="btn" data-act="allEntries">Показать все ${es.length}</button></div>`:''}`:'<div class="card empty" style="margin-top:10px">Интеграций пока нет</div>'}</div>`}
 
@@ -496,7 +521,7 @@ function addEntry(o){const e={id:uid('e'),p:o.p,d:o.d,a:o.a,t:o.t,u:o.u||'',n:o.
 function pickerHtml(){
   const p=PM.get(UI.add.pid);
   if(p)return `<div class="sel-p"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b><div class="muted">${esc(p.geo)} · ${esc(p.source)} · ${esc(p.buyer)} ${p.tracker?'· '+esc(p.tracker):''}</div></div><button type="button" class="btn sm ghost" data-act="clearP">Сменить</button></div>`;
-  const recent=[];const seen=new Set();for(const e of [...ST.entries].sort((a,b)=>(b.cr||0)-(a.cr||0)||b.d.localeCompare(a.d))){if(e.t!=='i'||seen.has(e.p))continue;seen.add(e.p);const pp=PM.get(e.p);if(pp&&pp.status!=='archive')recent.push(pp);if(recent.length>=8)break}
+  const recent=[];const seen=new Set();for(const e of [...ST.entries].sort((a,b)=>(b.cr||0)-(a.cr||0)||b.d.localeCompare(a.d))){if(e.t!=='i'||seen.has(e.p))continue;seen.add(e.p);const pp=PM.get(e.p);if(pp&&!pp.service)recent.push(pp);if(recent.length>=8)break}
   return `<input id="ap-q" placeholder="Начните вводить: название, трекер, гео…" data-autofocus><div id="ap-sugg"></div>
    <div class="row" style="margin-top:10px"><span class="muted">Недавние:</span>${recent.map(r=>`<button type="button" class="chip" style="font-family:var(--sans)" data-act="pickP" data-id="${r.id}">${esc(r.name)} <span class="dim">${esc(r.geo)} ${esc(r.source)}</span></button>`).join('')}</div>`}
 function pgAdd(){
@@ -517,6 +542,7 @@ function pgAdd(){
 function addInit(){addPackInfo();addHint();wireSugg()}
 function stdPrice(){const p=PM.get(UI.add.pid);return p?curPrice(p,UI.add.date):null}
 function addHint(){const h=$('#ap-hint');if(!h)return;const sp=stdPrice(),u=UI.add;
+  const pl=u.type==='i'?planOn(u.pid,u.date):null;if(pl){const cur=+$('#ap-a').value;h.innerHTML=`<span class="muted">По плану на ${dmy(pl.d)}: <b>${money(pl.a,2)}</b>${u.amountDirty&&cur!==pl.a?' · <span class="warn">своя сумма</span>':''} · запись закроет этот план</span>`;return}
   if(u.type!=='i'){h.innerHTML=u.type==='r'?'<span class="muted">Введите сумму возврата — она будет сохранена со знаком «−»</span>':'<span class="muted">Можно вводить с минусом или плюсом</span>';return}
   if(sp===null){h.innerHTML='<span class="muted">У партнёра нет стандартной цены — введите сумму</span>';return}
   const cur=+$('#ap-a').value;h.innerHTML=`<span class="muted">Стандартная цена: <b>${money(sp,2)}</b>${u.amountDirty&&cur!==sp?` · <a href="#" data-act="resetPrice">вернуть</a>`:''}${u.amountDirty&&cur!==sp?' · <span class="warn">своя цена</span>':''}</span>`}
@@ -524,10 +550,10 @@ function addPackInfo(){const box=$('#ap-pack');if(!box)return;const u=UI.add;con
   if(!u.pid){box.innerHTML='';return}
   if(!k){const ok=openPack(u.pid);box.innerHTML=`<div class="muted" style="margin-bottom:10px">${ok?`Дата раньше начала пакета (${dmy(ok.start)}) — запись не спишется с пакета`:'Нет активного пакета — запись просто учтётся в расходах'}</div>`;return}
   const s=packStats(k);box.innerHTML=`<div class="card" style="padding:10px 12px;background:var(--panel2);margin-bottom:10px"><div class="row" style="justify-content:space-between"><span>Пакет: осталось <b class="${s.left<=ST.settings.remindLeft?'warn':''}">${s.left}</b> из ${k.count}${u.type==='i'?` → <b>${s.left-1}</b>`:''}</span>${s.leftSum!==null?`<span class="muted">остаток ${money(s.leftSum)}</span>`:''}</div></div>`}
-function setAmountFromPrice(){const u=UI.add;if(u.type==='i'&&!u.amountDirty){const sp=stdPrice();u.amount=sp===null?'':String(sp);const el=$('#ap-a');if(el)el.value=u.amount}}
+function setAmountFromPrice(){const u=UI.add;if(u.type==='i'&&!u.amountDirty){const pl=planOn(u.pid,u.date);const sp=pl?pl.a:stdPrice();u.amount=sp===null?'':String(sp);const el=$('#ap-a');if(el)el.value=u.amount}}
 function wireSugg(){const q=$('#ap-q');if(!q)return;
   q.addEventListener('input',()=>{const t=q.value.trim().toLowerCase();const box=$('#ap-sugg');if(!t){box.innerHTML='';return}
-    const a=ST.partners.filter(p=>p.status!=='archive'&&t.split(/\s+/).every(w=>[p.name,p.tracker,p.geo,p.source,p.buyer,p.manager,p.link].join(' ').toLowerCase().includes(w))).slice(0,8);
+    const a=ST.partners.filter(p=>!p.service&&t.split(/\s+/).every(w=>[p.name,p.tracker,p.geo,p.source,p.buyer,p.manager,p.link].join(' ').toLowerCase().includes(w))).slice(0,8);
     box.innerHTML=a.length?`<div class="sugg">${a.map(p=>`<button type="button" data-act="pickP" data-id="${p.id}"><b style="flex:1">${esc(p.name)}</b><span class="muted">${esc(p.geo)} ${esc(p.source)}</span><span class="mono dim">${esc(p.tracker)}</span></button>`).join('')}</div>`:'<div class="muted" style="margin-top:8px">Ничего не найдено</div>'});
   q.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const b=$('#ap-sugg button');if(b)b.click()}})}
 
@@ -537,10 +563,11 @@ function pgCal(){
   const first=m+'-01',last=addDays(addMonth(m,1)+'-01',-1);const start=monday(first),end=addDays(monday(last),6);
   const es=ents({from:start,to:end,geo:u.geo,source:u.source,buyer:u.buyer});const by=new Map();
   for(const e of es){let x=by.get(e.d);if(!x)by.set(e.d,x={n:0,s:0});x.s+=e.a;if(e.t==='i')x.n++}
+  const pmap=new Map();for(const x of ST.plans){if(x.done||x.d<start||x.d>end)continue;const pp=PM.get(x.p);if(!pp||(u.geo&&pp.geo!==u.geo)||(u.source&&pp.source!==u.source)||(u.buyer&&pp.buyer!==u.buyer))continue;pmap.set(x.d,(pmap.get(x.d)||0)+1)}
   let cells='',d=start,wsum=0,wcnt=0;const td=today();
   ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(x=>cells+=`<div class="hd">${x}</div>`);cells+='<div class="hd">Неделя</div>';
   let n=0;while(d<=end){const x=by.get(d);wsum+=x?x.s:0;wcnt+=x?x.n:0;
-    cells+=`<button class="day ${d.slice(0,7)!==m?'out':''} ${d===td?'today':''} ${d===u.sel?'sel':''}" data-act="selDay" data-d="${d}"><b>${+d.slice(8)}</b>${x?`<span class="s">${nf0.format(x.s)}</span><span class="n">${x.n?x.n+' инт.':''}</span>`:''}</button>`;
+    cells+=`<button class="day ${d.slice(0,7)!==m?'out':''} ${d===td?'today':''} ${d===u.sel?'sel':''}" data-act="selDay" data-d="${d}"><b>${+d.slice(8)}</b>${x?`<span class="s">${nf0.format(x.s)}</span><span class="n">${x.n?x.n+' инт.':''}</span>`:''}${pmap.get(d)?`<span class="n" style="color:var(--warn)">план ${pmap.get(d)}</span>`:''}</button>`;
     n++;if(n%7===0){cells+=`<div class="wk"><b>${wsum?money(wsum):''}</b><span>${weekKey(addDays(d,-6)).slice(5)}</span></div>`;wsum=0;wcnt=0}d=addDays(d,1)}
   const mes=es.filter(e=>e.d.slice(0,7)===m);
   const sel=u.sel,sd=sel?es.filter(e=>e.d===sel):[];
@@ -548,7 +575,7 @@ function pgCal(){
   <div class="filters"><select data-cf="geo">${selOpts(ST.settings.geos,u.geo,'Все гео')}</select><select data-cf="source">${selOpts(ST.settings.sources,u.source,'Все источники')}</select><select data-cf="buyer">${selOpts(ST.settings.buyers,u.buyer,'Все байеры')}</select><span class="sp"></span><span class="muted">За месяц: <b class="num" style="color:var(--text)">${money(sum(mes,e=>e.a))}</b> · интеграций: <b style="color:var(--text)">${mes.filter(e=>e.t==='i').length}</b></span></div>
   <div class="cal">${cells}</div>
   ${sel?`<div class="card" style="margin-top:14px"><div class="row"><h2 style="margin:0">${dmy(sel)}</h2><span class="muted">${sd.length} зап. · ${money(sum(sd,e=>e.a))}</span><div class="sp"></div><a class="btn pri sm" href="#/add" data-act="addDate" data-d="${sel}">${ic('plus','s')} Добавить на эту дату</a></div>
-   ${sd.length?`<div style="margin-top:8px">${sd.map(e=>{const p=PM.get(e.p);return `<div class="li"><span class="lb" style="max-width:none;flex:1"><a href="#/partner/${p.id}" style="color:inherit">${esc(p.name)}</a> <span class="muted" style="font-weight:400">${esc(p.geo)} ${esc(p.source)}</span>${e.t!=='i'?` <span class="tag ${e.t==='r'?'bad':'warn'}">${entryTypeLabel(e)}</span>`:''}</span><b class="num ${e.a<0?'bad':''}">${money(e.a,2)}</b>${e.u?cpBtn(e.u)+openBtn(e.u):''}<button class="icon-btn" data-act="editEntry" data-id="${e.id}">${ic('edit','s')}</button></div>`}).join('')}</div>`:'<div class="muted" style="margin-top:8px">В этот день записей нет</div>'}</div>`:''}`}
+   ${sd.length?`<div style="margin-top:8px">${sd.map(e=>{const p=PM.get(e.p);return `<div class="li"><span class="lb" style="max-width:none;flex:1"><a href="#/partner/${p.id}" style="color:inherit">${esc(p.name)}</a> <span class="muted" style="font-weight:400">${esc(p.geo)} ${esc(p.source)}</span>${e.t!=='i'?` <span class="tag ${e.t==='r'?'bad':'warn'}">${entryTypeLabel(e)}</span>`:''}</span><b class="num ${e.a<0?'bad':''}">${money(e.a,2)}</b>${e.u?cpBtn(e.u)+openBtn(e.u):''}<button class="icon-btn" data-act="editEntry" data-id="${e.id}">${ic('edit','s')}</button></div>`}).join('')}</div>`:'<div class="muted" style="margin-top:8px">В этот день записей нет</div>'}${planDay(sel)}</div>`:''}`}
 
 /* ================= weekly report ================= */
 function weekData(key,buyer,geo){
@@ -663,8 +690,8 @@ const ACT={
   addPrice(t){const p=PM.get(t.dataset.id);modalForm('Новая цена',fld('Действует с даты','from',today(),{type:'date',req:1})+fld('Цена за 1 интеграцию, $','price','',{type:'number',step:'0.01',inputmode:'decimal',req:1}),'Добавить',f=>{p.prices=(p.prices||[]).filter(x=>x.from!==f.from);p.prices.push({from:f.from,price:+f.price});save();render()})},
   delPrice(t){if(!confirm('Удалить цену из истории?'))return;PM.get(t.dataset.id).prices.splice(+t.dataset.i,1);save();render()},
   editEntry(t){const e=ST.entries.find(x=>x.id===t.dataset.id);if(e)entryForm(e)},
-  delEntry(t){if(!confirm('Удалить запись?'))return;ST.entries=ST.entries.filter(x=>x.id!==t.dataset.id);UI.add.session=UI.add.session.filter(x=>x!==t.dataset.id);save();closeModal();render()},
-  undoEntry(t){ST.entries=ST.entries.filter(x=>x.id!==t.dataset.id);UI.add.session=UI.add.session.filter(x=>x!==t.dataset.id);save();render();toast('Запись удалена')},
+  delEntry(t){if(!confirm('Удалить запись?'))return;ST.plans.forEach(x=>{if(x.entryId===t.dataset.id){x.done=false;delete x.entryId}});ST.entries=ST.entries.filter(x=>x.id!==t.dataset.id);UI.add.session=UI.add.session.filter(x=>x!==t.dataset.id);save();closeModal();render()},
+  undoEntry(t){ST.plans.forEach(x=>{if(x.entryId===t.dataset.id){x.done=false;delete x.entryId}});ST.entries=ST.entries.filter(x=>x.id!==t.dataset.id);UI.add.session=UI.add.session.filter(x=>x!==t.dataset.id);save();render();toast('Запись удалена')},
   pickP(t){UI.add.pid=t.dataset.id;UI.add.amountDirty=false;setAmountFromPrice();render()},
   clearP(){UI.add.pid='';UI.add.amount='';UI.add.amountDirty=false;render()},
   resetPrice(t,ev){ev.preventDefault();UI.add.amountDirty=false;setAmountFromPrice();addHint()},
@@ -680,6 +707,13 @@ const ACT={
   delFd(t){ST.fd=ST.fd.filter(x=>x.id!==t.dataset.id);save();render()},
   delList(t){const key=t.dataset.key,v=t.dataset.v,f=key==='geos'?'geo':key==='sources'?'source':'buyer';if(ST.partners.some(p=>p[f]===v)){alert('Нельзя удалить: есть партнёры с этим значением. Сначала переместите их.');return}ST.settings[key]=ST.settings[key].filter(x=>x!==v);save();render()},
   export(){const b=new Blob([JSON.stringify(ST)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`ads-backup-${today()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)},
+  planForm(t){planForm(t.dataset.id)},
+  clearPlans(t){if(!confirm('Удалить все невыполненные планы партнёра?'))return;ST.plans=ST.plans.filter(x=>x.p!==t.dataset.id||x.done);save();render()},
+  editPlan(t){const x=ST.plans.find(q=>q.id===t.dataset.id);modalForm('Изменить план',fld('Дата','d',x.d,{type:'date',req:1})+fld('Сумма, $','a',x.a,{type:'number',step:'0.01',req:1}),'Сохранить',f=>{x.d=f.d;x.a=+f.a;save();render()},false,`<button type="button" class="btn danger" style="margin-right:auto" data-act="delPlan" data-id="${x.id}">${ic('trash','s')} Удалить</button>`)},
+  delPlan(t){ST.plans=ST.plans.filter(x=>x.id!==t.dataset.id);save();closeModal();render()},
+  donePlan(t){const x=ST.plans.find(q=>q.id===t.dataset.id),p=PM.get(x.p);const td=today();
+    modalForm('Интеграция выполнена',`<div class="muted" style="margin-bottom:10px">${esc(p.name)} · план на ${dmy(x.d)}</div><div class="grid g2"><div>${fld('Дата выхода','d',td,{type:'date',req:1})}</div><div>${fld('Сумма, $','a',x.a,{type:'number',step:'0.01',req:1})}</div></div>${fld('Ссылка на интеграцию','u','',{ph:'https://…'})}`,'Сохранить',f=>{
+      const e=addEntry({p:x.p,d:f.d,a:r2(+f.a),t:'i',u:normLink(f.u)});x.done=true;x.entryId=e.id;save();render();toast('Записано: '+p.name)})},
   guestOff(){if(!confirm('Выключить гостевой доступ? Гости будут разлогинены при следующей синхронизации.'))return;delete ST.meta.guestHash;delete ST.meta.guestSalt;save();render()},
   logout(){LS.del('mbyar_tok');showLogin()},
   syncNow(){syncPull(true)},
@@ -688,6 +722,20 @@ const ACT={
 ACT.renList=t=>{const key=t.dataset.key,v=t.dataset.v,f=key==='geos'?'geo':key==='sources'?'source':'buyer';const nv=(prompt('Новое название',v)||'').trim();if(!nv||nv===v)return;
   if(ST.settings[key].includes(nv)){alert('Такое значение уже есть');return}
   ST.settings[key]=ST.settings[key].map(x=>x===v?nv:x);ST.partners.forEach(p=>{if(p[f]===v)p[f]=nv});ST.fd.forEach(r=>{if(f!=='buyer'&&r[f]===v)r[f]=nv});save();render()};
+function planForm(pid){
+  const p=PM.get(pid),k=openPack(pid),st=k?packStats(k):null,pend=(PP.get(pid)||[]).length;
+  const n0=st?Math.max(st.left,0):'',s0=st?(st.leftSum!==null?Math.max(st.leftSum,0):(k.budget||'')):'';
+  const m=modalForm('Запланировать интеграции',`<div class="muted" style="margin-bottom:10px">${esc(p.name)}${k?` · пакет: осталось ${st.left} из ${k.count}${st.leftSum!==null?', остаток '+money(st.leftSum):''}`:' · нет активного пакета, укажите количество и сумму вручную'}</div>
+   <div class="grid g2"><div>${fld('Сколько интеграций','n',n0,{type:'number',req:1,inputmode:'numeric'})}</div><div>${fld('Сумма на распределение, $','s',s0,{type:'number',step:'0.01',req:1,inputmode:'decimal'})}</div></div>
+   <div class="grid g2"><div>${fld('С даты','from',today(),{type:'date',req:1})}</div><div>${fld('По дату (срок)','to',addDays(today(),13),{type:'date',req:1})}</div></div>
+   ${pend?`<label class="chk" style="margin-bottom:10px"><input type="checkbox" name="repl" checked> заменить текущие невыполненные планы (${pend})</label>`:''}
+   <div id="pl-prev" class="card" style="background:var(--panel2);padding:12px;margin-bottom:8px"></div>`,'Запланировать',f=>{
+     const n=Math.floor(+f.n),S=+f.s;if(!(n>=1)||!(S>=0)||f.to<f.from){alert('Проверьте количество, сумму и даты');return false}
+     if(f.repl)ST.plans=ST.plans.filter(x=>x.p!==pid||x.done);
+     for(const it of planItems(n,S,f.from,f.to))ST.plans.push({id:uid('n'),p:pid,d:it.d,a:it.a,done:false});save();render();toast(`Запланировано: ${n}`)},true);
+  const upd=()=>{const g=n=>m.querySelector(`[name=${n}]`).value;const n=Math.floor(+g('n')),S=+g('s'),a=g('from'),z=g('to');const el=m.querySelector('#pl-prev');
+    el.innerHTML=(n>=1&&S>=0&&a&&z&&z>=a)?planPreview(planItems(n,S,a,z)):'<span class="muted">Заполните поля — здесь появится расчёт</span>'};
+  m.addEventListener('input',upd);upd()}
 function packForm(pid,k){
   const p=PM.get(pid),isNew=!k;const pr=curPrice(p);
   k=k||{count:'',budget:'',start:today(),end:'',done0:0,spent0:0,note:''};
@@ -704,7 +752,7 @@ function packForm(pid,k){
      else{Object.assign(k,data);for(const e of ST.entries)if(e.p===pid&&!e.k&&e.d>=k.start&&(!k.end||e.d<=k.end))e.k=k.id}
      save();render()})}
 
-const WRITE=new Set(['newPartner','editPartner','bulk','editRef','delRef','newPack','editPack','closePack','reopenPack','addPrice','delPrice','editEntry','delEntry','undoEntry','pickP','clearP','addFd','delFd','renList','delList','toggleNoBrand','addFor','addDate','export','syncNow','cloudOff']);
+const WRITE=new Set(['newPartner','editPartner','bulk','editRef','delRef','newPack','editPack','closePack','reopenPack','addPrice','delPrice','editEntry','delEntry','undoEntry','pickP','clearP','addFd','delFd','renList','delList','toggleNoBrand','planForm','clearPlans','editPlan','delPlan','donePlan','addFor','addDate','export','syncNow','cloudOff']);
 document.addEventListener('click',ev=>{const t=ev.target.closest('[data-act]');if(!t)return;if(ROLE==='guest'&&WRITE.has(t.dataset.act)){ev.preventDefault();return}const f=ACT[t.dataset.act];if(f)f(t,ev)});
 document.addEventListener('input',ev=>{const t=ev.target;
   if(t.id==='p-q'){UI.partners.q=t.value;UI.partners.limit=80;$('#p-list').innerHTML=partnerRows()}
@@ -725,7 +773,7 @@ document.addEventListener('change',ev=>{const t=ev.target;const d=t.dataset;if(R
   else if(t.id==='imp-file'){importFile(t.files[0])}});
 document.addEventListener('submit',ev=>{const f=ev.target;if(ROLE==='guest'){ev.preventDefault();return}
   if(f.id==='add-form'){ev.preventDefault();const u=UI.add;const fd=Object.fromEntries(new FormData(f));let a=+fd.a;if(!isFinite(a)){return}
-    if(u.type==='r')a=-Math.abs(a);const e=addEntry({p:u.pid,d:fd.d||u.date,a:r2(a),t:u.type,u:normLink(fd.u),n:fd.n});u.session.push(e.id);
+    if(u.type==='r')a=-Math.abs(a);const e=addEntry({p:u.pid,d:fd.d||u.date,a:r2(a),t:u.type,u:normLink(fd.u),n:fd.n});u.session.push(e.id);if(u.type==='i'){const pl=planOn(e.p,e.d);if(pl){pl.done=true;pl.entryId=e.id;save()}}
     const p=PM.get(e.p);toast(`Сохранено: ${p.name} · ${money(e.a,2)}`);u.url='';u.note='';u.amountDirty=false;u.amount='';u.date=e.d;if(u.clear||u.type!=='i'){u.pid=''}u.type='i';setAmountFromPrice();render();return}
   const dn=f.dataset.form;if(!dn)return;ev.preventDefault();const fd=Object.fromEntries(new FormData(f));
   if(dn==='addRef'){const p=PM.get(f.dataset.id);const kind=f.dataset.kind;if(kind==='links')p.links.push({id:uid('l'),label:fd.label.trim(),url:fd.value.trim()});else p.promos.push({id:uid('c'),label:fd.label.trim(),code:fd.value.trim()});save();render()}
@@ -756,7 +804,7 @@ async function syncPull(manual){
     setSync('ok');if(manual)toast('Синхронизировано')}
   catch(e){CL.err=String(e.message||e);setSync('err');if(manual)alert('Ошибка синхронизации: '+CL.err)}}
 async function adoptRemote(){const a=await cloudFetch('app_state?id=eq.main&select=data');const d=a&&a[0]&&a[0].data;if(!d)return;
-  const hadTok=ST&&tokRole();ST=d;persist();reindex();LS.set('mbyar_synced',String(d.meta.rev));
+  if(!d.plans)d.plans=[];const hadTok=ST&&tokRole();ST=d;persist();reindex();LS.set('mbyar_synced',String(d.meta.rev));
   if(!ST.meta.codeHash){return}
   if(hadTok&&!tokRole()){showLogin();return}
   ROLE=tokRole()||ROLE;
